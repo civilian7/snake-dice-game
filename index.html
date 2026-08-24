@@ -1459,7 +1459,9 @@ td.down .arw { color: #1b7a22; }
         <h2>기본</h2>
         <ul>
           <li>두 말 모두 <b>1번 칸</b>에서 시작합니다.</li>
-          <li><b>선은 판마다 무작위로</b> 정해집니다. 누가 먼저인지 시작할 때 알려 줍니다.</li>
+          <li><b>선은 무작위로</b> 정해집니다. 누가 먼저인지 시작할 때 알려 줍니다.</li>
+          <li>판이 끝난 뒤 <b>계속하기</b>를 고르면 <b>진 쪽이 선</b>을 잡습니다.
+              위쪽 <b>새 게임</b>으로 시작하면 선을 다시 뽑습니다.</li>
           <li>번갈아 굴립니다. 컴퓨터 차례는 자동으로 진행됩니다.</li>
           <li>나온 눈만큼 앞으로 갑니다. <b>100번 칸</b>에 닿으면 이깁니다.</li>
         </ul>
@@ -1589,7 +1591,7 @@ td.down .arw { color: #1b7a22; }
   <div class="wtitle"></div>
   <div class="wsub"></div>
   <div class="wbtns">
-    <button class="btn-again" id="againBtn">다시 하기</button>
+    <button class="btn-again" id="againBtn">계속하기</button>
     <button class="btn-quit" id="quitBtn">그만하기</button>
   </div>
 </div></div>
@@ -2246,6 +2248,10 @@ const state = { turn: 0, over: false };
 let sixStreak = 0;
 let busy = false;
 
+// 다음 판의 선. null 이면 무작위로 뽑는다.
+// 판이 끝나고 「계속하기」를 고르면 진 쪽이 선을 잡는다.
+let nextFirst = null;
+
 function updatePanel() {
   for (let i = 0; i < PLAYERS.length; i++) {
     const p = PLAYERS[i];
@@ -2376,6 +2382,7 @@ async function takeTurn() {
 
   if (r.won) {
     state.over = true;
+    nextFirst = 1 - state.turn;        // 「계속하기」를 고르면 진 쪽이 선
     updatePanel();
     await sleep(400);
     showWinner(p);
@@ -2564,7 +2571,11 @@ function closeSetup(resume) {
 // announce 를 false 로 부르면 선을 알리는 카드를 띄우지 않는다(첫 진입에서 설정 창 뒤에
 // 카드가 깜빡이지 않게).
 function resetGame(announce) {
-  state.turn = (Math.random() < 0.5) ? 0 : 1;   // 선은 판마다 새로 뽑는다
+  // 이어서 하는 판이면 진 쪽이 선, 아니면 무작위로 뽑는다
+  const carried = (nextFirst !== null);
+  state.turn = carried ? nextFirst : ((Math.random() < 0.5) ? 0 : 1);
+  nextFirst = null;
+
   state.over = false;
   sixStreak = 0;
   bonusPending = false;
@@ -2587,7 +2598,7 @@ function resetGame(announce) {
   showCard({
     kind:   "start",
     icon:   first.icon,
-    kicker: "선 뽑기",
+    kicker: carried ? "진 쪽이 선" : "선 뽑기",
     text:   `${first.name}부터 시작합니다`,
     hold:   1700
   });
@@ -2637,7 +2648,7 @@ function init() {
     ? "주사위를 눌러도 굴릴 수 있습니다"
     : "Space 키로도 굴릴 수 있습니다";
 
-  // 새 게임 · 다시 하기는 모두 다이얼로그를 거친다
+  // 계속하기 — 진 쪽이 선을 잡는다(승리 시 nextFirst 가 이미 정해져 있다)
   document.getElementById("againBtn").addEventListener("click", () => {
     winnerEl.classList.remove("show");
     openSetup();
@@ -2648,7 +2659,11 @@ function init() {
     winnerEl.classList.remove("show");
   });
 
-  document.getElementById("newBtn").addEventListener("click", openSetup);
+  // 새 게임 — 이어서 하는 것이 아니므로 선을 다시 뽑는다
+  document.getElementById("newBtn").addEventListener("click", () => {
+    nextFirst = null;
+    openSetup();
+  });
 
   document.getElementById("setupStart").addEventListener("click", () => {
     closeSetup(false);              // 이어 가지 않는다 — 바로 새 판을 연다
