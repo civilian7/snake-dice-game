@@ -1,0 +1,2267 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1b1a17">
+<meta name="mobile-web-app-capable" content="yes">
+<title>뱀주사위놀이 · 육성 버전</title>
+<style>
+/* ==========================================================================
+   뱀주사위놀이 (육성 버전) — 단일 파일 웹 보드게임
+   외부 자산 없음. file:// 더블클릭으로 그대로 동작한다.
+   ========================================================================== */
+
+:root {
+  --cell-a: #f8ea6d;          /* 보드 밝은 칸 */
+  --cell-b: #fdf7bb;          /* 보드 어두운 칸 */
+  --ink:    #4a3d09;
+  --line:   #8a7414;
+  --human:  #2b6cff;
+  --cpu:    #e2382d;
+  --paper:  #1b1a17;
+  --panel:  #262420;
+
+  /* 원본 이미지(520x758) 안에서 10x10 격자가 차지하는 영역.
+     이미지의 행·열 평균 밝기에서 칸 경계를 검출해 최소자승으로 맞춘 값이다
+     (열 간격 50.9px, 행 간격 63.0px). 다른 그림으로 바꾸면
+     콘솔에서 __calibGrid(true) 로 눈금을 켜고 __setGrid(l,t,w,h) 로 다시 맞춘다.
+     --img-w/--img-h 는 measureBoardImage() 가 실측값으로 덮어쓴다. */
+  --img-w: 520;
+  --img-h: 758;
+  --grid-l: 1.06%;
+  --grid-t: 15.83%;
+  --grid-w: 97.79%;
+  --grid-h: 83.11%;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1200px 700px at 50% -10%, #34322c 0%, var(--paper) 60%);
+  color: #eee7d2;
+  font-family: "Pretendard", "Malgun Gothic", "맑은 고딕", system-ui, -apple-system, sans-serif;
+
+  /* 노치·홈 인디케이터를 피해 여백을 잡는다 (viewport-fit=cover 와 짝) */
+  padding:
+    calc(18px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+    calc(40px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+
+  /* 터치 환경 — 탭 하이라이트·확대 지연·드래그 선택을 없앤다 */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* 안내 페이지의 글은 읽고 복사할 수 있어야 한다 */
+.help-body {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+button { touch-action: manipulation; }
+
+/* ---------- 머리말 ---------- */
+
+.masthead {
+  max-width: 1100px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.masthead h1 {
+  margin: 0;
+  font-size: clamp(20px, 3.4vw, 30px);
+  letter-spacing: -0.02em;
+  color: #ffe25a;
+  text-shadow: 2px 2px 0 #7a5a00, 4px 4px 0 rgba(0,0,0,.35);
+}
+
+.masthead .sub {
+  font-size: 13px;
+  color: #a49c86;
+}
+
+.mast-btns {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 사이드 패널의 세그먼트는 폭을 나눠 갖지만, 상단에서는 글자 폭만 차지한다 */
+.mast-btns .seg { flex: none; padding: 7px 14px; }
+.mast-btns .divider { width: 1px; height: 20px; background: #4a4438; margin: 0 4px; }
+
+.btn-mast {
+  padding: 7px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffe25a;
+  background: #2b2822;
+  border: 1px solid #5c5344;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+}
+
+.btn-mast:hover { background: #3a352b; border-color: #8a7c62; }
+
+/* ---------- 안내 (게임 개요 / 게임 방법) ---------- */
+
+/* 원본 보드의 종이 질감을 그대로 가져와, 놀이판 설명서처럼 보이게 한다 */
+#help {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: none;
+  place-items: center;
+  padding: 24px 16px;
+  background: rgba(8, 7, 6, .82);
+}
+
+#help.show { display: grid; }
+
+.help-box {
+  width: min(800px, 100%);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: #fdf6d8;
+  border: 4px solid #2b2410;
+  border-radius: 18px;
+  box-shadow: 0 0 0 4px #f0b800, 0 30px 80px rgba(0,0,0,.75);
+  overflow: hidden;
+  animation: helpIn 320ms cubic-bezier(.2, 1.4, .4, 1);
+}
+
+@keyframes helpIn {
+  0%   { transform: scale(.86) translateY(18px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.help-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, #ffe95e, #f3cf1f);
+  border-bottom: 4px solid #2b2410;
+}
+
+.help-title {
+  font-size: clamp(17px, 2.6vw, 22px);
+  font-weight: 900;
+  letter-spacing: -.02em;
+  color: #c62828;
+  text-shadow: 2px 2px 0 #fff;
+}
+
+.help-title em { font-style: normal; color: #1b5e20; }
+
+.help-close {
+  margin-left: auto;
+  width: 36px;
+  height: 36px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 900;
+  color: #2b2410;
+  background: #fff6c9;
+  border: 2px solid #2b2410;
+  border-radius: 10px;
+  box-shadow: 0 3px 0 #2b2410;
+  cursor: pointer;
+}
+
+.help-close:hover  { background: #ffffff; }
+.help-close:active { transform: translateY(3px); box-shadow: none; }
+
+.help-body {
+  padding: 24px 28px 30px;
+  overflow-y: auto;
+  overscroll-behavior: contain;      /* 끝까지 스크롤해도 뒤쪽 페이지로 넘어가지 않게 */
+  -webkit-overflow-scrolling: touch;
+  color: #3a3116;
+  font-size: 14.5px;
+  line-height: 1.8;
+  word-break: keep-all;      /* 한글은 어절 단위로 끊는다 */
+}
+
+/* 제목은 보드에 붙은 딱지처럼 */
+.help-body h2 {
+  display: inline-block;
+  margin: 32px 0 12px;
+  padding: 5px 16px;
+  font-size: 15.5px;
+  font-weight: 900;
+  color: #fff6c9;
+  background: #c62828;
+  border: 2px solid #2b2410;
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 #2b2410;
+}
+
+.help-body h2:first-child { margin-top: 0; }
+
+.help-body p { margin: 0 0 13px; }
+
+.help-body ul { margin: 0 0 16px; padding-left: 2px; list-style: none; }
+.help-body li { margin-bottom: 6px; padding-left: 20px; position: relative; }
+
+.help-body li::before {
+  content: "◆";
+  position: absolute;
+  left: 2px;
+  color: #c62828;
+  font-size: 11px;
+  top: .28em;
+}
+
+/* 형광펜으로 그은 듯이 */
+.help-body b {
+  font-weight: 800;
+  background: linear-gradient(transparent 58%, #ffe14f 58%);
+}
+
+.help-body .note {
+  margin: 20px 0 0;
+  padding: 14px 18px;
+  background: #fff9e4;
+  border: 2px dashed #b59a3a;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #6b5a1e;
+}
+
+.help-body .kbd {
+  display: inline-block;
+  padding: 1px 9px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #2b2410;
+  background: #ffffff;
+  border: 2px solid #2b2410;
+  border-radius: 6px;
+  box-shadow: 0 2px 0 #2b2410;
+}
+
+.tbl-wrap { overflow-x: auto; margin-bottom: 14px; }
+
+table.cells {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  background: #fff9e4;
+  border: 2px solid #2b2410;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+table.cells th,
+table.cells td {
+  padding: 7px 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+table.cells th {
+  background: #f3cf1f;
+  color: #4a3d09;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  border-bottom: 2px solid #2b2410;
+}
+
+table.cells td { border-bottom: 1px solid #e6d8a6; }
+table.cells tr:last-child td { border-bottom: none; }
+table.cells tbody tr:nth-child(even) td { background: #fdf6d8; }
+
+table.cells td.story { white-space: normal; color: #6b5a1e; }
+table.cells td.move  { width: 1%; }
+
+/* 칸 번호는 보드의 칸처럼 네모 칩으로. 폭을 고정해 위아래가 나란히 선다. */
+.chip {
+  display: inline-grid;
+  place-items: center;
+  width: 42px;
+  height: 26px;
+  font-size: 12.5px;
+  font-weight: 900;
+  color: #2b2410;
+  background: #ffffff;
+  border: 2px solid #2b2410;
+  border-radius: 8px;
+  box-shadow: 0 2px 0 #2b2410;
+  vertical-align: middle;
+}
+
+.chip.from { background: #fff6c9; }
+
+td.up   .chip.to { background: #cfe0ff; color: #0a2f8f; }
+td.down .chip.to { background: #cfe9cf; color: #124a16; }
+
+.arw {
+  display: inline-block;
+  width: 24px;
+  text-align: center;
+  font-weight: 900;
+  vertical-align: middle;
+}
+
+td.up   .arw { color: #0a58ff; }
+td.down .arw { color: #1b7a22; }
+
+/* ---------- 전체 배치 ---------- */
+
+/* 패널을 보드와 같은 높이로 늘여 둔다. 그래야 로그가 아무리 쌓여도
+   페이지가 보드보다 길어지지 않고 로그 안에서만 스크롤된다. */
+#app {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  gap: 22px;
+  align-items: stretch;
+  justify-content: center;
+}
+
+#boardWrap {
+  position: relative;
+  padding: 12px;
+  border-radius: 14px;
+  background: linear-gradient(160deg, #3a3629, #211f19);
+  box-shadow: 0 18px 44px rgba(0,0,0,.55), inset 0 0 0 2px #6a5c22;
+}
+
+/* ---------- 보드 격자 ---------- */
+
+/* #board 는 바깥 틀, #grid 는 10x10 이 실제로 놓이는 영역이다.
+   원본 이미지 모드에서는 이미지 안의 격자 위치에 #grid 를 얹으므로
+   칸·말 좌표 계산은 두 모드가 같은 코드를 쓴다. */
+#board {
+  position: relative;
+  width: clamp(300px, 54vmin, 600px);
+  overflow: hidden;
+}
+
+/* 두 모드가 같은 크기·같은 격자 위치를 쓴다. 전환해도 보드가 움직이지 않는다. */
+#board {
+  aspect-ratio: var(--img-w) / var(--img-h);
+}
+
+#grid {
+  position: absolute;
+  left:   var(--grid-l);
+  top:    var(--grid-t);
+  width:  var(--grid-w);
+  height: var(--grid-h);
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+}
+
+/* ---- 레트로 모드: 코드로 그린 보드 ---- */
+
+#board[data-bg="retro"] {
+  border: 3px solid var(--line);
+  background: var(--cell-a);
+}
+
+/* ---- 원본 이미지 모드 ---- */
+
+#board[data-bg="photo"] {
+  background: #000 url("board.webp") center / 100% 100% no-repeat;
+  border: 3px solid #2a2620;
+}
+
+/* ---- 레트로 모드의 제목 배너 (원본의 노란 제목판 자리) ---- */
+
+#banner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--grid-t);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: linear-gradient(180deg, #ffe95e, #f3cf1f);
+  border-bottom: 3px solid var(--line);
+  text-align: center;
+}
+
+#board[data-bg="retro"] #banner { display: flex; }
+
+#banner .b-title {
+  font-size: clamp(19px, 4.6vmin, 40px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: #c62828;
+  text-shadow: 2px 2px 0 #fff, 3px 3px 0 rgba(0,0,0,.35);
+}
+
+#banner .b-title em {
+  font-style: normal;
+  color: #1b5e20;
+}
+
+#banner .b-sub {
+  font-size: clamp(8px, 1.5vmin, 13px);
+  font-weight: 700;
+  color: #6b5300;
+  letter-spacing: .02em;
+}
+
+/* 이미지가 이미 칸·번호·뱀·도로를 다 그려 놓았으므로 우리 것은 감춘다 */
+#board[data-bg="photo"] .cell   { background: none; border-color: transparent; }
+#board[data-bg="photo"] .num,
+#board[data-bg="photo"] .badge,
+#board[data-bg="photo"] #overlay { display: none; }
+
+/* 원본 그림은 알록달록해서 말이 묻힌다. 검은 링을 둘러 떼어 놓는다. */
+#board[data-bg="photo"] .token {
+  box-shadow: 0 0 0 2.5px rgba(0, 0, 0, .9), 0 4px 8px rgba(0, 0, 0, .7);
+}
+
+/* 격자 맞춤 확인용. window.__calibGrid(true) 로 켠다 */
+#board.calib .cell { border: 1px solid #ff2d55; }
+
+.cell {
+  position: relative;
+  background: var(--cell-a);
+  border: 1px solid rgba(138, 116, 20, .38);
+  overflow: hidden;
+}
+
+.cell.odd { background: var(--cell-b); }
+
+/* 도착 칸은 옅게 물들여 어디로 가는지 미리 보이게 한다 */
+.cell.dest-up   { background: #d9f0b8; }
+.cell.dest-down { background: #f5d3cc; }
+
+/* 번호와 표식은 뱀·도로(z:2) 위에 얹어야 가려지지 않는다 */
+.cell .num {
+  position: absolute;
+  z-index: 3;
+  top: 1px;
+  left: 2px;
+  font-size: clamp(7px, 1.32vmin, 12px);
+  font-weight: 700;
+  line-height: 1.35;
+  padding: 0 3px;
+  border-radius: 6px;
+  color: var(--ink);
+  background: rgba(255,255,255,.72);
+}
+
+.cell .badge {
+  position: absolute;
+  z-index: 3;
+  right: 1px;
+  bottom: 0;
+  font-size: clamp(7px, 1.3vmin, 12px);
+  line-height: 1;
+  opacity: .9;
+}
+
+.cell .badge.up {
+  color: #0a58ff;
+  font-weight: 900;
+}
+
+/* 이번 턴에 밟은 칸을 잠깐 반짝인다 */
+.cell.flash {
+  animation: cellFlash .55s ease-out;
+}
+
+@keyframes cellFlash {
+  0%   { box-shadow: inset 0 0 0 3px #fff, inset 0 0 22px rgba(255,255,255,.9); }
+  100% { box-shadow: inset 0 0 0 0 transparent; }
+}
+
+/* ---------- 뱀 / 고속도로 오버레이 ---------- */
+
+/* .cell 이 position:relative 라 DOM 순서상 오버레이를 덮는다. z-index 로 위로 올린다. */
+#overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ---------- 말 ---------- */
+
+.token-wrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  transition: transform 170ms ease-out;
+  will-change: transform;
+  z-index: 5;
+}
+
+.token {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  filter: drop-shadow(0 3px 3px rgba(0,0,0,.5));
+}
+
+/* 색 하나에 기대지 않는다 — 색 + 아이콘 + 테두리 모양이 모두 다르다 */
+.token.human {
+  background: radial-gradient(circle at 32% 28%, #8fb6ff, var(--human) 62%);
+  border: 3px solid #ffffff;
+}
+
+.token.cpu {
+  background: radial-gradient(circle at 32% 28%, #ff9c93, var(--cpu) 62%);
+  border: 5px double #ffffff;
+}
+
+.token.hop  { animation: hop 180ms ease-out; }
+.token.bump { animation: bump 420ms ease-out; }
+
+@keyframes hop {
+  0%   { transform: translateY(0)     scale(1); }
+  45%  { transform: translateY(-42%)  scale(1.14); }
+  100% { transform: translateY(0)     scale(1); }
+}
+
+@keyframes bump {
+  0%, 100% { transform: translate(0,0) rotate(0); }
+  25%  { transform: translate(-14%, 0) rotate(-14deg); }
+  75%  { transform: translate( 14%, 0) rotate( 14deg); }
+}
+
+.token-wrap.sliding  { transition: transform 700ms cubic-bezier(.5, -0.18, .4, 1.2); }
+.token-wrap.knocking { transition: transform 540ms cubic-bezier(.35, .9, .25, 1); z-index: 6; }
+.token-wrap.knocking .token { animation: tumble 540ms ease-out; }
+
+@keyframes tumble {
+  0%   { transform: rotate(0)      scale(1); }
+  45%  { transform: rotate(320deg) scale(.72); }
+  100% { transform: rotate(720deg) scale(1); }
+}
+.token-wrap.slide-snake .token { animation: wiggle 700ms ease-in-out; }
+.token-wrap.slide-road  .token { animation: zoomy  700ms ease-in-out; }
+
+@keyframes wiggle {
+  0%,100% { transform: rotate(0); }
+  20% { transform: rotate(-24deg); }
+  50% { transform: rotate( 22deg); }
+  80% { transform: rotate(-12deg); }
+}
+
+@keyframes zoomy {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+
+/* ---------- 사이드 패널 ---------- */
+
+#panel {
+  width: 300px;
+  flex: 0 0 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid #3d3930;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.pcard {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border-left: 6px solid transparent;
+  transition: border-color .2s, background .2s, transform .2s;
+}
+
+.pcard .pico {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  flex: 0 0 38px;
+}
+
+.pcard[data-id="human"] .pico {
+  background: radial-gradient(circle at 32% 28%, #8fb6ff, var(--human) 62%);
+  border: 3px solid #fff;
+}
+
+.pcard[data-id="cpu"] .pico {
+  background: radial-gradient(circle at 32% 28%, #ff9c93, var(--cpu) 62%);
+  border: 4px double #fff;
+}
+
+.pcard .pname { font-weight: 700; font-size: 15px; }
+.pcard .ppos  { font-size: 12px; color: #a49c86; margin-top: 2px; }
+.pcard .pturn {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #3a3529;
+  color: #8d856f;
+}
+
+.pcard.active { background: #2f2c24; transform: translateX(2px); }
+.pcard.active[data-id="human"] { border-left-color: var(--human); }
+.pcard.active[data-id="cpu"]   { border-left-color: var(--cpu); }
+.pcard.active .pturn { background: #ffe25a; color: #4a3d09; }
+
+/* ---------- 주사위 ---------- */
+
+.dice-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.dice-stage {
+  perspective: 620px;
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+}
+
+.dice-lift { transform-style: preserve-3d; }
+.dice-stage.rolling .dice-lift { animation: lift 900ms cubic-bezier(.3,.7,.3,1); }
+
+@keyframes lift {
+  0%   { transform: translateY(0)     scale(1); }
+  30%  { transform: translateY(-26px) scale(1.08); }
+  62%  { transform: translateY(6px)   scale(.96); }
+  100% { transform: translateY(0)     scale(1); }
+}
+
+.dice {
+  --dz: 36px;                 /* 큐브 한 변의 절반 — 좁은 화면에서 CSS 로 줄인다 */
+  position: relative;
+  width: 72px;
+  height: 72px;
+  transform-style: preserve-3d;
+  cursor: pointer;            /* 주사위를 눌러도 굴러간다 */
+}
+
+.dice.landed { animation: pop 220ms ease-out; }
+
+@keyframes pop {
+  0%   { filter: brightness(1); }
+  40%  { filter: brightness(1.9) drop-shadow(0 0 14px #ffe25a); }
+  100% { filter: brightness(1); }
+}
+
+.face {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #fffdf0, #ece0b6);
+  border: 2px solid #b5992f;
+  box-shadow: inset 0 0 10px rgba(140,110,20,.28);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 9px;
+  gap: 3px;
+  backface-visibility: hidden;
+}
+
+.pip {
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #6a6455, #17150f 70%);
+  box-shadow: inset 0 -1px 2px rgba(255,255,255,.25);
+}
+
+#rollBtn {
+  width: 100%;
+  padding: 13px 0;
+  font-size: 16px;
+  font-weight: 800;
+  font-family: inherit;
+  color: #4a3d09;
+  background: linear-gradient(180deg, #ffe86b, #f0b800);
+  border: none;
+  border-bottom: 4px solid #a37c00;
+  border-radius: 11px;
+  cursor: pointer;
+  transition: transform .08s, filter .15s;
+}
+
+#rollBtn:hover:not(:disabled) { filter: brightness(1.07); }
+#rollBtn:active:not(:disabled) { transform: translateY(2px); border-bottom-width: 2px; }
+
+#rollBtn:disabled {
+  background: #443f34;
+  color: #7d7663;
+  border-bottom-color: #332f27;
+  cursor: default;
+}
+
+.hint { font-size: 11px; color: #7d7663; text-align: center; }
+
+/* 6 이 나와 한 번 더 굴릴 수 있을 때 뜨는 알림 */
+#againNote {
+  display: none;
+  width: 100%;
+  padding: 7px 10px;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #4a3d09;
+  background: linear-gradient(180deg, #b9f6a8, #86e06d);
+  border: 1px solid #4e9b3a;
+  border-radius: 9px;
+  animation: notePop 420ms cubic-bezier(.2, 1.5, .4, 1);
+}
+
+#againNote.show { display: block; }
+
+@keyframes notePop {
+  0%   { transform: scale(.7); opacity: 0; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ---------- 진행 로그 ---------- */
+
+/* 로그 카드가 남은 높이를 다 먹고, 넘치는 내용은 카드 안에서만 스크롤된다 */
+#logCard {
+  padding: 10px 12px;
+  flex: 1 1 0;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#logCard h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #8d856f;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+#log {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12.5px;
+  line-height: 1.45;
+
+  scrollbar-width: thin;                       /* Firefox */
+  scrollbar-color: #5c5344 transparent;
+}
+
+/* WebKit 계열 — 패널 색에 맞춘 얇은 막대 */
+#log::-webkit-scrollbar { width: 8px; }
+#log::-webkit-scrollbar-track { background: #1f1d19; border-radius: 8px; }
+#log::-webkit-scrollbar-thumb { background: #4a4438; border-radius: 8px; }
+#log::-webkit-scrollbar-thumb:hover { background: #6d6552; }
+
+/* 안내 페이지 본문도 같은 막대를 쓴다 */
+/* 안내 페이지는 종이 바탕이라 막대도 종이 색에 맞춘다 */
+.help-body {
+  scrollbar-width: thin;
+  scrollbar-color: #b59a3a #efe3b8;
+}
+
+.help-body::-webkit-scrollbar { width: 10px; }
+.help-body::-webkit-scrollbar-track { background: #efe3b8; }
+.help-body::-webkit-scrollbar-thumb { background: #b59a3a; border-radius: 8px; border: 2px solid #efe3b8; }
+.help-body::-webkit-scrollbar-thumb:hover { background: #8f7a24; }
+
+#log .row { padding-left: 8px; border-left: 3px solid #4a4438; color: #cdc6b2; }
+#log .row.human { border-left-color: var(--human); }
+#log .row.cpu   { border-left-color: var(--cpu); }
+#log .row.sys   { border-left-color: #ffe25a; color: #ffe9a0; }
+
+/* ---------- 교훈 카드 ---------- */
+
+#story {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 40;
+  opacity: 0;
+  transition: opacity 280ms ease;
+}
+
+#story.show { opacity: 1; }
+
+/* 안내 팝업과 같은 종이 질감 — 놀이판에서 뽑은 카드처럼 보이게 한다 */
+#story .inner {
+  --accent: #8a7c62;
+  max-width: 440px;
+  margin: 0 20px;
+  padding: 26px 30px 24px;
+  text-align: center;
+  background: #fdf6d8;
+  color: #2b2410;
+  border: 4px solid #2b2410;
+  border-radius: 20px;
+  box-shadow: 0 0 0 5px var(--accent), 0 26px 60px rgba(0,0,0,.65);
+  transform: scale(.8) translateY(20px) rotate(-2.5deg);
+  transition: transform 300ms cubic-bezier(.2, 1.5, .4, 1);
+}
+
+#story.show .inner  { transform: scale(1) translateY(0) rotate(0); }
+#story.up    .inner { --accent: #1f6bff; }
+#story.down  .inner { --accent: #2c9c34; }
+#story.catch .inner { --accent: #e2382d; }
+
+/* 카드 위로 반쯤 걸쳐 나오는 아이콘 배지 */
+#story .s-icon {
+  width: 66px;
+  height: 66px;
+  margin: -56px auto 10px;
+  display: grid;
+  place-items: center;
+  font-size: 34px;
+  line-height: 1;
+  background: #fff6c9;
+  border: 4px solid #2b2410;
+  border-radius: 50%;
+  box-shadow: 0 4px 0 #2b2410;
+}
+
+/* 제목은 안내 페이지와 같은 스티커 모양 */
+#story .kicker {
+  display: inline-block;
+  margin-bottom: 14px;
+  padding: 5px 18px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  color: #fff6c9;
+  background: var(--accent);
+  border: 2px solid #2b2410;
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 #2b2410;
+}
+
+#story .text {
+  font-size: 17.5px;
+  font-weight: 800;
+  line-height: 1.6;
+  color: #2b2410;
+  word-break: keep-all;      /* 한글은 어절 단위로 끊는다 — 마지막 한 글자만 넘어가지 않게 */
+}
+
+#story .move { margin-top: 16px; }
+#story .move:empty { display: none; }
+
+#story .chip { width: 52px; height: 34px; font-size: 15.5px; }
+#story .arw  { width: 30px; font-size: 17px; color: var(--accent); }
+
+#story.up    .chip.to { background: #cfe0ff; color: #0a2f8f; }
+#story.down  .chip.to { background: #cfe9cf; color: #124a16; }
+#story.catch .chip.to { background: #ffd6d2; color: #8f1a12; }
+
+/* ---------- 승자 오버레이 ---------- */
+
+#winner {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-items: center;
+  background: rgba(10,9,7,.82);
+  z-index: 50;
+}
+
+#winner.show { display: grid; }
+
+#winner .inner {
+  text-align: center;
+  padding: 34px 44px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #3a3629, #211f19);
+  border: 3px solid #ffe25a;
+  box-shadow: 0 30px 80px rgba(0,0,0,.7);
+}
+
+#winner .wico { font-size: 62px; }
+#winner .wtitle { font-size: 26px; font-weight: 900; color: #ffe25a; margin: 6px 0 4px; }
+#winner .wsub { color: #a49c86; font-size: 13px; margin-bottom: 20px; }
+
+.btn-again {
+  padding: 12px 30px;
+  font-size: 15px;
+  font-weight: 800;
+  font-family: inherit;
+  color: #4a3d09;
+  background: linear-gradient(180deg, #ffe86b, #f0b800);
+  border: none;
+  border-bottom: 4px solid #a37c00;
+  border-radius: 11px;
+  cursor: pointer;
+}
+
+.btn-ghost {
+  width: 100%;
+  padding: 8px 0;
+  font-family: inherit;
+  font-size: 12px;
+  color: #a49c86;
+  background: transparent;
+  border: 1px solid #4a4438;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.btn-ghost:hover { color: #eee7d2; border-color: #6d6552; }
+
+/* ---------- 보드 모드 전환 ---------- */
+
+.seg-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.seg-lbl {
+  font-size: 12px;
+  color: #8d856f;
+  margin-right: 4px;
+}
+
+.seg {
+  flex: 1;
+  padding: 7px 0;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #a49c86;
+  background: #1f1d19;
+  border: 1px solid #4a4438;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.seg:hover { color: #eee7d2; }
+
+.seg.on {
+  color: #4a3d09;
+  background: #ffe25a;
+  border-color: #ffe25a;
+}
+
+/* ---------- 좁은 화면 ---------- */
+
+/* ---------- 태블릿 · 좁은 창: 세로로 쌓는다 ---------- */
+
+@media (max-width: 900px) {
+  /* align-items:center 로 두면 #boardWrap 이 shrink-to-fit 이 되어 그 안의
+     #board 가 쓰는 width:100% 가 순환 참조로 무너진다(min-width 까지 쪼그라든다).
+     대신 stretch 로 두고 안쪽에서 가운데 정렬한다. */
+  #app { flex-direction: column; align-items: stretch; }
+  #boardWrap { display: flex; justify-content: center; }
+  #panel { width: 100%; max-width: 600px; margin: 0 auto; flex: none; }
+
+  /* 카드 두 장을 나란히 — min-width:0 이 없으면 안쪽 글자가 카드를 밀어 화면 밖으로 넘긴다 */
+  .players { display: flex; gap: 10px; }
+  .players .pcard { flex: 1 1 0; min-width: 0; padding: 10px; gap: 8px; }
+  .players .pcard .pico { width: 32px; height: 32px; flex: 0 0 32px; font-size: 17px; }
+  .players .pcard .pname { font-size: 14px; }
+  .players .pcard .pturn { font-size: 10px; padding: 2px 7px; }
+
+  #logCard { flex: none; }
+  #log { max-height: 130px; }
+}
+
+/* ---------- 휴대폰 세로 ---------- */
+
+@media (max-width: 700px) {
+  body { padding: calc(10px + env(safe-area-inset-top)) 10px calc(20px + env(safe-area-inset-bottom)); }
+
+  #app { gap: 12px; }
+
+  .masthead { margin-bottom: 10px; gap: 8px; row-gap: 8px; }
+  .masthead h1 { font-size: 20px; }
+  .mast-btns { margin-left: 0; width: 100%; gap: 6px; }
+  .mast-btns .seg-lbl { display: none; }
+  .mast-btns .divider { display: none; }
+
+  /* 손가락으로 누를 수 있는 크기(≥40px)로 키우고, 네 개가 한 줄에 고르게 들어가게 한다 */
+  .mast-btns .seg,
+  .mast-btns .btn-mast {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 4px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  /* 보드가 화면 높이를 넘지 않게 폭을 높이로 역산한다.
+     svh 는 주소창이 펼쳐진 상태 기준이라 어떤 순간에도 잘리지 않는다. */
+  #boardWrap { padding: 8px; border-radius: 10px; }
+  #board {
+    width: min(100%, calc((100vh - 300px) * var(--img-w) / var(--img-h)));
+    width: min(100%, calc((100svh - 300px) * var(--img-w) / var(--img-h)));
+    min-width: 250px;
+  }
+
+  /* 주사위와 굴리기 버튼을 한 줄에 — 세로로 쌓으면 버튼이 화면 밖으로 밀린다 */
+  .dice-box {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "dice roll"
+      "note note"
+      "hint hint";
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px 12px;
+  }
+
+  .dice-stage { grid-area: dice; width: 68px; height: 68px; perspective: 460px; }
+  .dice { --dz: 26px; width: 52px; height: 52px; }
+  .face { padding: 6px; gap: 2px; border-radius: 9px; }
+
+  #rollBtn { grid-area: roll; min-height: 52px; font-size: 17px; }
+  #againNote { grid-area: note; }
+  .hint { grid-area: hint; }
+
+  .seg-row { padding: 6px 10px; }
+  .seg-row .seg { min-height: 40px; }
+
+  #log { max-height: 104px; }
+
+  /* 안내 페이지는 화면을 꽉 채우는 시트로 */
+  #help { padding: 0; }
+  .help-box {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    border-width: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .help-head { padding: calc(10px + env(safe-area-inset-top)) 14px 10px; }
+  .help-close { width: 42px; height: 42px; }
+  .help-body { padding: 18px 18px calc(30px + env(safe-area-inset-bottom)); font-size: 14px; }
+  .help-body h2 { margin-top: 26px; font-size: 14.5px; padding: 4px 13px; }
+  table.cells th, table.cells td { padding: 6px 8px; }
+  table.cells td.story { font-size: 12.5px; }
+
+  /* 카드도 화면 폭에 맞춘다 */
+  #story .inner { max-width: none; margin: 0 14px; padding: 24px 20px 20px; }
+  #story .text { font-size: 16px; }
+
+  #winner .inner { padding: 28px 26px; margin: 0 18px; }
+}
+
+/* ---------- 휴대폰 가로 (높이가 짧을 때) ---------- */
+
+@media (max-height: 560px) and (orientation: landscape) {
+  body { padding: 8px 12px; }
+  .masthead { margin-bottom: 8px; }
+  .masthead h1 { font-size: 17px; }
+
+  /* 높이가 부족하므로 다시 좌우로 나란히 놓는다 */
+  #app { flex-direction: row; align-items: flex-start; gap: 14px; }
+
+  /* 세로 배치에서 쓰던 margin:0 auto 가 남으면 가로 배치에서 자동 여백이
+     남는 공간을 다 먹어 보드가 왼쪽 끝으로 밀린다 */
+  #panel { width: 260px; max-width: 260px; flex: 0 0 260px; margin: 0; }
+  #board { width: calc((100svh - 90px) * var(--img-w) / var(--img-h)); min-width: 180px; }
+
+  .players { flex-direction: column; }
+  #logCard { display: none; }         /* 로그는 자리가 없다 — 카드 안내로 대신한다 */
+}
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <h1>뱀주사위놀이</h1>
+
+  <div class="mast-btns">
+    <span class="seg-lbl">보드</span>
+    <button class="seg" data-bg="photo">원본 그림</button>
+    <button class="seg" data-bg="retro">레트로</button>
+    <span class="divider"></span>
+    <button class="btn-mast" id="newBtn">새 게임</button>
+    <button class="btn-mast" id="helpBtn">게임 안내</button>
+  </div>
+</div>
+
+<div id="app">
+  <div id="boardWrap">
+    <div id="board" data-bg="photo">
+      <div id="banner">
+        <div class="b-title"><em>뱀</em>주사위놀이</div>
+        <div class="b-sub">육성 버전 · 고속도로 13 · 뱀 12</div>
+      </div>
+      <div id="grid">
+        <svg id="overlay" viewBox="0 0 1000 1239" preserveAspectRatio="none" aria-hidden="true"></svg>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel">
+    <div class="players">
+      <div class="card pcard" data-id="human">
+        <div class="pico">🧑</div>
+        <div>
+          <div class="pname">나</div>
+          <div class="ppos">1번 칸</div>
+        </div>
+        <div class="pturn">대기</div>
+      </div>
+      <div class="card pcard" data-id="cpu">
+        <div class="pico">🤖</div>
+        <div>
+          <div class="pname">컴퓨터</div>
+          <div class="ppos">1번 칸</div>
+        </div>
+        <div class="pturn">대기</div>
+      </div>
+    </div>
+
+    <div class="card dice-box">
+      <div class="dice-stage" id="diceStage">
+        <div class="dice-lift">
+          <div class="dice" id="dice"></div>
+        </div>
+      </div>
+      <div id="againNote"></div>
+      <button id="rollBtn">주사위 굴리기</button>
+      <div class="hint">Space 키로도 굴릴 수 있습니다</div>
+    </div>
+
+    <div class="card seg-row">
+      <span class="seg-lbl">소리</span>
+      <button class="seg" data-snd="on">켜짐</button>
+      <button class="seg" data-snd="off">꺼짐</button>
+    </div>
+
+    <div class="card" id="logCard">
+      <h3>진행</h3>
+      <div id="log"></div>
+    </div>
+  </div>
+</div>
+
+<div id="help">
+  <div class="help-box" role="dialog" aria-modal="true" aria-label="게임 안내">
+    <div class="help-head">
+      <span class="help-title">🎲 <em>뱀</em>주사위놀이 안내</span>
+      <button class="help-close" id="helpClose" aria-label="닫기">✕</button>
+    </div>
+
+    <div class="help-body">
+      <section>
+        <h2>어떤 놀이인가</h2>
+        <p>
+          <b>뱀주사위놀이</b>는 1에서 100까지 적힌 10×10 판 위에서 주사위를 굴려
+          말을 옮기고, 100번 칸에 먼저 닿는 사람이 이기는 놀이입니다. 세계적으로는
+          <b>Snakes and Ladders</b>로 알려져 있고, 우리나라에서는 1970~80년대에
+          문방구에서 팔던 종이 보드로 많은 사람이 기억합니다.
+        </p>
+        <p>
+          이 게임은 그중 <b>육성출판사 「육성 버전」</b> 보드를 옮긴 것입니다.
+          이 판의 특징은 사다리 대신 <b>고속도로</b>가 그려져 있다는 점입니다.
+          당시 새로 뚫린 고속도로가 「빠르게 앞서 나감」의 상징이었기 때문입니다.
+        </p>
+
+        <h2>칸마다 이야기가 있다</h2>
+        <p>
+          육성 버전은 단순한 주사위 놀이가 아니라 <b>교훈을 가르치는 판</b>이었습니다.
+          착한 일을 한 칸에서는 고속도로를 타고 앞으로 뛰고, 위험하거나 나쁜 짓을 한
+          칸에서는 뱀에게 물려 뒤로 미끄러집니다. 노인에게 길을 비켜 드리면 4번에서
+          16번으로, 언 호수에서 스케이트를 타다 얼음이 깨지면 22번에서 2번으로
+          떨어지는 식입니다.
+        </p>
+        <p>
+          이 웹 버전에서는 그런 칸에 도착하면 무슨 일이 있었는지 카드로 보여 줍니다.
+        </p>
+
+        <h2>이 웹 버전</h2>
+        <ul>
+          <li>사람 1명과 컴퓨터 1명이 번갈아 두는 턴제입니다.</li>
+          <li>주사위는 3D로 구르며, 결과가 나오는 과정을 눈으로 볼 수 있습니다.</li>
+          <li>보드는 <b>원본 그림</b>과, 같은 배치를 코드로 다시 그린 <b>레트로</b> 중에 고를 수 있습니다.</li>
+          <li>고속도로 13개와 뱀 12개는 원본 보드와 같습니다.</li>
+        </ul>
+
+        <p class="note">
+          뱀주사위놀이는 운이 전부인 놀이입니다. 고를 수 있는 것이 없으므로
+          컴퓨터에게 난이도나 전략은 존재하지 않습니다. 이기고 지는 것은
+          오직 주사위에 달려 있습니다.
+        </p>
+        <h2>기본</h2>
+        <ul>
+          <li>두 말 모두 <b>1번 칸</b>에서 시작합니다.</li>
+          <li><b>사람이 먼저</b> 굴리고, 그다음 컴퓨터가 자동으로 굴립니다.</li>
+          <li>나온 눈만큼 앞으로 갑니다. <b>100번 칸</b>에 닿으면 이깁니다.</li>
+        </ul>
+
+        <h2>주사위</h2>
+        <ul>
+          <li><span class="kbd">주사위 굴리기</span> 버튼을 누르거나 <span class="kbd">Space</span> 키를 누릅니다.</li>
+          <li><b>6이 나오면 한 번 더</b> 굴립니다.</li>
+          <li>다만 한 차례에 <b>6이 세 번 연속</b> 나오면 거기서 차례가 넘어갑니다.</li>
+        </ul>
+
+        <h2>고속도로와 뱀</h2>
+        <ul>
+          <li>도착한 칸이 <b>고속도로 입구</b>면 훨씬 앞의 칸으로 뛰어오릅니다.</li>
+          <li>도착한 칸이 <b>뱀이 있는 칸</b>이면 뱀의 몸을 타고 아래 칸으로 미끄러집니다.</li>
+          <li>미끄러지거나 뛰어오른 칸에서 또 발동하는 <b>연쇄는 없습니다</b>.</li>
+        </ul>
+
+        <h2>100번 칸은 정확히</h2>
+        <p>
+          100을 <b>넘어가면 넘어간 만큼 되돌아옵니다</b>. 97번에서 6이 나오면
+          100을 찍고 3칸 되돌아와 97번에 섭니다. 되돌아온 칸에 뱀이나 고속도로가
+          있으면 그것은 <b>발동합니다</b> — 96번에서 6이 나오면 98번으로 되돌아왔다가
+          뱀에게 물려 78번까지 떨어집니다.
+        </p>
+
+        <h2>밀어내기</h2>
+        <p>
+          고속도로와 뱀까지 모두 처리한 <b>최종 칸</b>에 상대 말이 서 있으면,
+          그 말은 <b>1번 칸으로 되돌아갑니다</b>. 다 온 말을 처음으로 돌려보낼 수
+          있으니 끝까지 마음을 놓을 수 없습니다.
+        </p>
+
+        <h2>화면</h2>
+        <ul>
+          <li>파란 <b>🧑 말</b>이 사람, 빨간 <b>🤖 말</b>이 컴퓨터입니다.</li>
+          <li>상단에서 <b>원본 그림 / 레트로</b> 보드를 바꿀 수 있습니다.</li>
+          <li>오른쪽 <b>소리</b>에서 효과음을 끌 수 있습니다.</li>
+          <li><b>새 게임</b>을 누르면 처음부터 다시 시작합니다.</li>
+        </ul>
+
+        <h2>고속도로 13곳</h2>
+        <div class="tbl-wrap"><table class="cells" id="tblUp"></table></div>
+
+        <h2>뱀 12곳</h2>
+        <div class="tbl-wrap"><table class="cells" id="tblDown"></table></div>
+
+        <p class="note">
+          칸별 문구는 원본 보드의 그림을 따른 것이며, 원문이 남아 있지 않은 칸은
+          그림의 정황에 맞추어 새로 쓴 것입니다.
+        </p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div id="story"><div class="inner">
+  <div class="s-icon"></div>
+  <div class="kicker"></div>
+  <div class="text"></div>
+  <div class="move"></div>
+</div></div>
+
+<div id="winner"><div class="inner">
+  <div class="wico"></div>
+  <div class="wtitle"></div>
+  <div class="wsub"></div>
+  <button class="btn-again" id="againBtn">다시 하기</button>
+</div></div>
+
+<script>
+"use strict";
+
+/* ==========================================================================
+   1. 보드 데이터
+   ========================================================================== */
+
+// 고속도로(전진) 13개 — 육성 버전 원본
+const HIGHWAYS = {
+  4: 16, 8: 12, 18: 38, 20: 74, 24: 36, 32: 56, 34: 46,
+  40: 60, 48: 54, 70: 88, 76: 86, 80: 100, 90: 92
+};
+
+// 뱀(후퇴) 12개 — 육성 버전 원본
+const SNAKES = {
+  22: 2, 28: 6, 30: 10, 44: 26, 58: 42, 66: 14,
+  68: 52, 72: 50, 84: 62, 94: 64, 96: 82, 98: 78
+};
+
+// 칸별 교훈. 일부만 원문이 남아 있어 나머지는 보드 그림 정황에 맞춰 작성했다.
+const STORIES = {
+  4:  "노인에게 길을 비켜 드려 칭찬을 받았다",
+  8:  "어른께 공손히 인사하여 귀여움을 받았다",
+  18: "친구의 무거운 짐을 함께 들어 주었다",
+  20: "나쁜 짓을 하는 사람을 신고해 표창장을 받았다",
+  24: "길에 떨어진 쓰레기를 주워 거리를 깨끗이 했다",
+  32: "어려운 이웃을 돕는 성금을 냈다",
+  34: "길 잃은 아이를 파출소에 데려다 주었다",
+  40: "부모님의 일손을 부지런히 도왔다",
+  48: "책을 열심히 읽어 아는 것이 많아졌다",
+  70: "물에 빠진 친구를 침착하게 구해 냈다",
+  76: "날마다 운동을 하여 몸이 튼튼해졌다",
+  80: "달리기에서 일등을 하여 우승했다",
+  90: "횡단보도에서 신호를 지켜 안전하게 건넜다",
+
+  22: "언 호수에서 스케이트를 타다 얼음이 깨져 빠졌다",
+  28: "차도에서 공놀이를 하다 큰일 날 뻔했다",
+  30: "욕심껏 과식을 하여 배탈이 났다",
+  44: "친구와 싸우다 다쳤다",
+  58: "공부를 미루고 놀다가 시험을 망쳤다",
+  66: "남의 물건에 손을 대어 붙잡혀 갇혔다",
+  68: "남의 물건을 함부로 쓰다 망가뜨렸다",
+  72: "거짓말을 하여 믿음을 잃었다",
+  84: "높은 곳에 올라가 장난치다 떨어졌다",
+  94: "지푸라기에 불을 붙이는 불장난을 하다 불이 났다",
+  96: "밤늦게까지 놀다 건강을 해쳤다",
+  98: "다 이겼다고 방심하여 준비를 게을리했다"
+};
+
+/* ==========================================================================
+   2. 좌표 — 부스트로페돈 (1번 좌하단, 100번 좌상단)
+   ========================================================================== */
+
+// 칸 번호(1~100) → 격자 좌표. row 0 이 맨 아랫줄, 짝수 줄은 왼→오른쪽으로 센다.
+function cellToXY(n) {
+  const i = n - 1;
+  const row = Math.floor(i / 10);
+  const col = (row % 2 === 0) ? (i % 10) : (9 - (i % 10));
+  return { col, top: 9 - row };
+}
+
+// SVG 오버레이 좌표계. 칸은 정사각이 아니다 — 원본 격자의 칸 비율(가로 50.85 : 세로 63.0)을
+// 그대로 써서 viewBox 를 1000 x 1239 로 잡았다. 그래야 늘어남 없이 격자에 딱 맞는다.
+const CELL_VW = 100;
+const CELL_VH = 123.9;
+
+function cellCenter(n) {
+  const { col, top } = cellToXY(n);
+  return { x: col * CELL_VW + CELL_VW / 2, y: top * CELL_VH + CELL_VH / 2 };
+}
+
+/* ==========================================================================
+   3. 규칙 계층 — DOM 을 모른다. 애니메이션은 이 결과를 재생만 한다.
+   ========================================================================== */
+
+function resolveMove(from, dice) {
+  const walkTo = from + dice;
+  const bounced = walkTo > 100;
+  const landed = bounced ? 200 - walkTo : walkTo;   // 100 을 넘은 만큼 되돌아온다
+
+  let jump = null;
+  let final = landed;
+
+  if (HIGHWAYS[landed] !== undefined) {
+    jump = "highway";
+    final = HIGHWAYS[landed];
+  } else if (SNAKES[landed] !== undefined) {
+    jump = "snake";
+    final = SNAKES[landed];
+  }
+
+  return { walkTo, bounced, landed, jump, final, won: final === 100 };
+}
+
+/* ==========================================================================
+   4. 보드 렌더링
+   ========================================================================== */
+
+const board   = document.getElementById("board");
+const grid    = document.getElementById("grid");
+const overlay = document.getElementById("overlay");
+const cellEls = {};                       // 칸 번호 → DOM
+
+// 칸 하나의 픽셀 크기. 원본 이미지 모드는 칸이 정사각이 아니므로 가로·세로를 따로 잰다.
+function cellSize() {
+  return { w: grid.clientWidth / 10, h: grid.clientHeight / 10 };
+}
+
+function buildGrid() {
+  const destUp = new Set(Object.values(HIGHWAYS));
+  const destDown = new Set(Object.values(SNAKES));
+
+  for (let n = 1; n <= 100; n++) {
+    const { col, top } = cellToXY(n);
+    const el = document.createElement("div");
+
+    el.className = "cell" + (((col + top) % 2) ? " odd" : "");
+    if (destUp.has(n))   el.classList.add("dest-up");
+    if (destDown.has(n)) el.classList.add("dest-down");
+
+    el.dataset.n = n;
+    el.style.gridColumn = col + 1;
+    el.style.gridRow = top + 1;
+
+    let badge = "";
+    if (HIGHWAYS[n] !== undefined) badge = '<span class="badge up">&#8599;</span>';
+    else if (SNAKES[n] !== undefined) badge = '<span class="badge">&#128013;</span>';
+
+    el.innerHTML = '<span class="num">' + n + "</span>" + badge;
+    grid.appendChild(el);
+    cellEls[n] = el;
+  }
+}
+
+const SVGNS = "http://www.w3.org/2000/svg";
+
+function svg(tag, attrs) {
+  const el = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+
+// 두 점을 잇는 완만한 호. amp 만큼 수직으로 부풀린다.
+function arcPath(a, b, amp) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+  const cx = (a.x + b.x) / 2 + nx * amp;
+  const cy = (a.y + b.y) / 2 + ny * amp;
+  return { d: `M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`, cx, cy };
+}
+
+// 두 점을 잇는 물결. 진행 방향에 수직으로 진폭을 번갈아 준다.
+function wavyPath(a, b, waves, amp) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+
+  let d = `M ${a.x} ${a.y}`;
+  let firstCtl = null;
+  let lastCtl = null;
+
+  for (let i = 1; i <= waves; i++) {
+    const t1 = i / waves;
+    const tm = (i - 0.5) / waves;
+    const sign = (i % 2 === 1) ? 1 : -1;
+    const cx = a.x + dx * tm + nx * amp * sign;
+    const cy = a.y + dy * tm + ny * amp * sign;
+    if (!firstCtl) firstCtl = { x: cx, y: cy };
+    lastCtl = { x: cx, y: cy };
+    d += ` Q ${cx} ${cy} ${a.x + dx * t1} ${a.y + dy * t1}`;
+  }
+
+  return { d, firstCtl, lastCtl };
+}
+
+function drawHighway(from, to, g) {
+  const a = cellCenter(from);
+  const b = cellCenter(to);
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  const amp = (from % 2 === 0 ? 1 : -1) * Math.min(140, len * 0.16);
+  const p = arcPath(a, b, amp);
+
+  // 회색 밑단 → 흰 노면 → 노란 차선. 세 겹을 겹쳐 리본 도로를 만든다.
+  g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#8d8d8d",
+    "stroke-width": 32, "stroke-linecap": "round", opacity: .85 }));
+  g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#ffffff",
+    "stroke-width": 25, "stroke-linecap": "round" }));
+  g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#f0a500",
+    "stroke-width": 5, "stroke-dasharray": "17 13", "stroke-linecap": "butt" }));
+
+  // 도착점 화살표. 2차 베지어의 끝 접선은 (끝점 - 제어점) 방향이다.
+  const ang = Math.atan2(b.y - p.cy, b.x - p.cx) * 180 / Math.PI;
+  g.appendChild(svg("polygon", {
+    points: "-4,-13 20,0 -4,13",
+    fill: "#0a58ff",
+    stroke: "#ffffff",
+    "stroke-width": 2.5,
+    transform: `translate(${b.x} ${b.y}) rotate(${ang})`
+  }));
+}
+
+function drawSnake(from, to, g) {
+  // 뱀은 미끄럼틀이다 — 큰 번호(시작)가 꼬리, 작은 번호(도착)에 머리가 있어
+  // 몸통을 타고 내려가 머리에 잡아먹히는 그림이 된다. 원본 보드도 이 방향이다.
+  const a = cellCenter(from);       // 꼬리 (큰 번호)
+  const b = cellCenter(to);         // 머리 (작은 번호)
+  const len = Math.hypot(b.x - a.x, b.y - a.y);
+  const waves = Math.max(3, Math.min(7, Math.round(len / 110)));
+  const amp = Math.min(60, len * 0.13);
+  const p = wavyPath(a, b, waves, amp);
+
+  g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#1d5c22",
+    "stroke-width": 26, "stroke-linecap": "round" }));
+  g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#4faa33",
+    "stroke-width": 17, "stroke-linecap": "round" }));
+  g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#a6dd6a",
+    "stroke-width": 4, "stroke-dasharray": "9 17", "stroke-linecap": "round", opacity: .8 }));
+
+  // 꼬리 — 시작 칸(a)에서 몸통 바깥으로 뾰족하게 뺀다.
+  {
+    const ox = a.x - p.firstCtl.x;
+    const oy = a.y - p.firstCtl.y;
+    const on = Math.hypot(ox, oy) || 1;
+    const ux = ox / on;
+    const uy = oy / on;
+    g.appendChild(svg("polygon", {
+      points: [
+        `${a.x - uy * 12} ${a.y + ux * 12}`,
+        `${a.x + uy * 12} ${a.y - ux * 12}`,
+        `${a.x + ux * 30} ${a.y + uy * 30}`
+      ].join(" "),
+      fill: "#1d5c22"
+    }));
+  }
+
+  // 머리 — 도착 칸(b)에. +x 축이 몸통 쪽을 향하게 돌려 혀가 바깥으로 나오게 한다.
+  const ang = Math.atan2(p.lastCtl.y - b.y, p.lastCtl.x - b.x) * 180 / Math.PI;
+  const head = svg("g", { transform: `translate(${b.x} ${b.y}) rotate(${ang})` });
+
+  head.appendChild(svg("path", {
+    d: "M -6 0 L -20 -7 L -32 0 L -20 7 Z",   // 갈라진 혀
+    fill: "#e23a3a"
+  }));
+  head.appendChild(svg("ellipse", { cx: 4, cy: 0, rx: 24, ry: 19,
+    fill: "#2c7a2f", stroke: "#134a16", "stroke-width": 3 }));
+  head.appendChild(svg("circle", { cx: 12, cy: -8, r: 5.5, fill: "#ffffff" }));
+  head.appendChild(svg("circle", { cx: 12, cy:  8, r: 5.5, fill: "#ffffff" }));
+  head.appendChild(svg("circle", { cx: 14, cy: -8, r: 2.6, fill: "#111111" }));
+  head.appendChild(svg("circle", { cx: 14, cy:  8, r: 2.6, fill: "#111111" }));
+
+  g.appendChild(head);
+}
+
+function buildOverlay() {
+  const roads = svg("g", {});
+  const snakes = svg("g", {});
+
+  for (const from in HIGHWAYS) drawHighway(+from, HIGHWAYS[from], roads);
+  for (const from in SNAKES)   drawSnake(+from, SNAKES[from], snakes);
+
+  overlay.appendChild(roads);     // 도로를 먼저, 뱀을 위에
+  overlay.appendChild(snakes);
+}
+
+/* ==========================================================================
+   5. 말
+   ========================================================================== */
+
+const PLAYERS = [
+  { id: "human", name: "나",     icon: "🧑", pos: 1, wrap: null, tok: null },
+  { id: "cpu",   name: "컴퓨터", icon: "🤖", pos: 1, wrap: null, tok: null }
+];
+
+function buildTokens() {
+  for (const p of PLAYERS) {
+    const wrap = document.createElement("div");
+    wrap.className = "token-wrap";
+
+    const tok = document.createElement("div");
+    tok.className = "token " + p.id;
+    tok.textContent = p.icon;
+
+    wrap.appendChild(tok);
+    grid.appendChild(wrap);
+    p.wrap = wrap;
+    p.tok = tok;
+  }
+}
+
+// 말 크기·글자 크기를 칸 크기에 맞춰 다시 잡는다.
+function sizeTokens() {
+  const c = cellSize();
+  const s = Math.min(c.w, c.h);
+  for (const p of PLAYERS) {
+    p.wrap.style.width = p.wrap.style.height = (s * 0.64) + "px";
+    p.wrap.style.fontSize = (s * 0.34) + "px";
+  }
+}
+
+function placeToken(p, n, instant) {
+  const { col, top } = cellToXY(n);
+  const c = cellSize();
+  // 같은 칸에 겹칠 때를 대비해 대각으로 어긋나게 둔다 (사람은 왼쪽 아래, 컴퓨터는 오른쪽 위)
+  const dx = (p.id === "human" ? -0.17 : 0.17) * c.w;
+  const dy = (p.id === "human" ?  0.13 : -0.13) * c.h;
+  const x = col * c.w + c.w / 2 + dx;
+  const y = top * c.h + c.h / 2 + dy;
+
+  if (instant) p.wrap.style.transition = "none";
+  p.wrap.style.transform = `translate(calc(${x}px - 50%), calc(${y}px - 50%))`;
+  if (instant) {
+    void p.wrap.offsetWidth;                 // 강제 리플로우 — 다음 이동은 다시 애니메이션
+    p.wrap.style.transition = "";
+  }
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function flashCell(n) {
+  const el = cellEls[n];
+  if (!el) return;
+  el.classList.remove("flash");
+  void el.offsetWidth;
+  el.classList.add("flash");
+}
+
+// 한 칸씩 폴짝. to 가 뒤쪽이면 후진한다.
+async function hopTo(p, to) {
+  const step = to > p.pos ? 1 : -1;
+  let i = 0;
+  while (p.pos !== to) {
+    p.pos += step;
+    p.tok.classList.remove("hop");
+    void p.tok.offsetWidth;
+    p.tok.classList.add("hop");
+    placeToken(p, p.pos);
+    flashCell(p.pos);
+    sfxHop(i++);
+    updatePanel();
+    await sleep(180);
+  }
+  p.tok.classList.remove("hop");
+}
+
+// 뱀·고속도로는 칸을 걷지 않고 곡선을 타듯 한 번에 미끄러진다.
+async function slideTo(p, to, kind) {
+  p.wrap.classList.add("sliding", kind === "snake" ? "slide-snake" : "slide-road");
+  if (kind === "snake") sfxSnake(); else sfxRoad();
+  p.pos = to;
+  placeToken(p, to);
+  updatePanel();
+  await sleep(720);
+  p.wrap.classList.remove("sliding", "slide-snake", "slide-road");
+  flashCell(to);
+}
+
+// 밀려난 말은 칸을 되짚지 않고 최단 경로로 곧장 날아간다. 되돌아가는 칸 수가 많아도 늘 짧다.
+async function knockTo(p, to) {
+  p.wrap.classList.add("knocking");
+  sfxKnock();
+  p.pos = to;
+  placeToken(p, to);
+  updatePanel();
+  await sleep(560);
+  p.wrap.classList.remove("knocking");
+  flashCell(to);
+}
+
+/* ==========================================================================
+   6. 주사위 — CSS 3D 큐브
+   ========================================================================== */
+
+const diceEl = document.getElementById("dice");
+const diceStage = document.getElementById("diceStage");
+
+// 면 배치. 마주 보는 면의 합이 7 이 되도록 둔다.
+// 밀어내는 거리는 --dz(큐브 한 변의 절반)로 두어 화면 크기별로 CSS 에서 바꿀 수 있게 한다.
+const FACES = [
+  { v: 1, t: "translateZ(var(--dz))" },
+  { v: 6, t: "rotateY(180deg) translateZ(var(--dz))" },
+  { v: 3, t: "rotateY(90deg) translateZ(var(--dz))" },
+  { v: 4, t: "rotateY(-90deg) translateZ(var(--dz))" },
+  { v: 2, t: "rotateX(90deg) translateZ(var(--dz))" },
+  { v: 5, t: "rotateX(-90deg) translateZ(var(--dz))" }
+];
+
+// 3x3 격자에서 눈 값별로 점이 놓이는 자리(1~9)
+const PIPS = {
+  1: [5],
+  2: [1, 9],
+  3: [1, 5, 9],
+  4: [1, 3, 7, 9],
+  5: [1, 3, 5, 7, 9],
+  6: [1, 3, 4, 6, 7, 9]
+};
+
+// 각 눈이 정면에 오도록 하는 큐브 회전각 [rotateX, rotateY]
+const FACE_ROT = {
+  1: [0, 0],
+  2: [-90, 0],
+  3: [0, -90],
+  4: [0, 90],
+  5: [90, 0],
+  6: [0, 180]
+};
+
+function buildDice() {
+  for (const f of FACES) {
+    const face = document.createElement("div");
+    face.className = "face";
+    face.style.transform = f.t;
+
+    for (const slot of PIPS[f.v]) {
+      const pip = document.createElement("div");
+      pip.className = "pip";
+      pip.style.gridColumn = ((slot - 1) % 3) + 1;
+      pip.style.gridRow = Math.floor((slot - 1) / 3) + 1;
+      face.appendChild(pip);
+    }
+
+    diceEl.appendChild(face);
+  }
+  diceEl.style.transform = "rotateX(0deg) rotateY(0deg)";
+}
+
+const diceAngle = { x: 0, y: 0 };
+
+// cur 보다 최소 spins 바퀴 앞이면서 target 과 360 합동인 각. 항상 앞으로만 돈다.
+function nextAngle(cur, target, spins) {
+  const base = cur + spins * 360;
+  const diff = ((target - base) % 360 + 360) % 360;
+  return base + diff;
+}
+
+async function rollDice() {
+  const forced = window.__forceDice;
+  const value = (forced >= 1 && forced <= 6) ? forced : 1 + Math.floor(Math.random() * 6);
+
+  // 결과는 굴리기 시작 시점에 이미 확정된다. 애니메이션은 그 값으로 착지할 뿐이다.
+  const rot = FACE_ROT[value];
+  diceAngle.x = nextAngle(diceAngle.x, rot[0], 3 + Math.floor(Math.random() * 2));
+  diceAngle.y = nextAngle(diceAngle.y, rot[1], 4 + Math.floor(Math.random() * 2));
+
+  diceStage.classList.add("rolling");
+  diceEl.style.transition = "transform 900ms cubic-bezier(.22,.85,.25,1)";
+  diceEl.style.transform = `rotateX(${diceAngle.x}deg) rotateY(${diceAngle.y}deg)`;
+  sfxRoll();
+
+  await sleep(900);
+
+  diceStage.classList.remove("rolling");
+  sfxLand();
+  diceEl.classList.add("landed");
+  await sleep(220);
+  diceEl.classList.remove("landed");
+
+  return value;
+}
+
+/* ==========================================================================
+   7. 효과음 — 음원 파일 없이 Web Audio 로 그때그때 합성한다
+   ========================================================================== */
+
+const SND_KEY = "snakegame.snd";
+let soundOn = true;
+let actx = null;
+
+// 오디오 컨텍스트는 사용자가 처음 누를 때 깨어난다(브라우저 자동재생 정책).
+function ac() {
+  if (!soundOn) return null;
+  try {
+    if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === "suspended") actx.resume();
+    return actx;
+  } catch (e) {
+    return null;                          // 소리를 못 내는 환경 — 조용히 넘어간다
+  }
+}
+
+// 음 하나. f0 에서 f1 로 미끄러지며 잦아든다.
+function tone(f0, f1, dur, type, vol, delay) {
+  const c = ac();
+  if (!c) return;
+
+  const t = c.currentTime + (delay || 0);
+  const osc = c.createOscillator();
+  const g = c.createGain();
+
+  osc.type = type || "sine";
+  osc.frequency.setValueAtTime(f0, t);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+
+  osc.connect(g).connect(c.destination);
+  osc.start(t);
+  osc.stop(t + dur + 0.03);
+}
+
+// 잡음 한 조각. 주사위가 부딪히는 딱딱한 소리에 쓴다.
+function click(vol, dur, freq, delay) {
+  const c = ac();
+  if (!c) return;
+
+  const t = c.currentTime + (delay || 0);
+  const len = Math.max(1, Math.floor(c.sampleRate * dur));
+  const buf = c.createBuffer(1, len, c.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+
+  const src = c.createBufferSource();
+  src.buffer = buf;
+
+  const bp = c.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.frequency.value = freq;
+  bp.Q.value = 1.4;
+
+  const g = c.createGain();
+  g.gain.value = vol;
+
+  src.connect(bp).connect(g).connect(c.destination);
+  src.start(t);
+}
+
+// 주사위가 구르는 900ms 동안 딱딱 부딪히는 소리를 미리 예약해 둔다.
+function sfxRoll() {
+  for (let i = 0; i < 9; i++) {
+    click(0.16 - i * 0.009, 0.05, 1500 + Math.random() * 1800, i * 0.092 + Math.random() * 0.03);
+  }
+}
+
+function sfxLand() {
+  click(0.3, 0.09, 900);
+  tone(220, 90, 0.16, "triangle", 0.18);
+}
+
+// 말이 한 칸 뛸 때. 여러 칸을 이어 갈수록 음이 조금씩 올라가 신이 난다.
+function sfxHop(step) {
+  const f = 520 * Math.pow(1.06, Math.min(step, 10));
+  tone(f, f * 1.5, 0.08, "square", 0.06);
+}
+
+function sfxSnake() {
+  tone(700, 110, 0.66, "sawtooth", 0.13);
+  tone(352, 56, 0.66, "sine", 0.09);
+}
+
+function sfxRoad() {
+  tone(240, 980, 0.6, "triangle", 0.12);
+  tone(360, 1470, 0.6, "sine", 0.06);
+}
+
+function sfxKnock() {
+  click(0.34, 0.12, 500);
+  tone(180, 60, 0.3, "square", 0.16);
+}
+
+function sfxWin() {
+  [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, f, 0.24, "triangle", 0.16, i * 0.13));
+  tone(1046.5, 1046.5, 0.7, "sine", 0.12, 0.52);
+}
+
+function setSound(on) {
+  soundOn = !!on;
+  for (const b of document.querySelectorAll(".seg[data-snd]")) {
+    b.classList.toggle("on", (b.dataset.snd === "on") === soundOn);
+  }
+  try { localStorage.setItem(SND_KEY, soundOn ? "on" : "off"); } catch (e) { /* 무시 */ }
+}
+
+/* ==========================================================================
+   8. 패널 · 로그 · 카드
+   ========================================================================== */
+
+const rollBtn = document.getElementById("rollBtn");
+const logEl = document.getElementById("log");
+const pcards = {
+  human: document.querySelector('.pcard[data-id="human"]'),
+  cpu:   document.querySelector('.pcard[data-id="cpu"]')
+};
+
+const state = { turn: 0, over: false };
+let sixStreak = 0;
+let busy = false;
+
+function updatePanel() {
+  for (let i = 0; i < PLAYERS.length; i++) {
+    const p = PLAYERS[i];
+    const card = pcards[p.id];
+    card.querySelector(".ppos").textContent = p.pos + "번 칸";
+    const mine = (i === state.turn) && !state.over;
+    card.classList.toggle("active", mine);
+    card.querySelector(".pturn").textContent = state.over ? "종료" : (mine ? "내 차례" : "대기");
+  }
+}
+
+function log(msg, who) {
+  const row = document.createElement("div");
+  row.className = "row " + (who || "sys");
+  row.textContent = msg;
+  logEl.prepend(row);
+  while (logEl.children.length > 60) logEl.lastChild.remove();
+}
+
+const storyEl = document.getElementById("story");
+let storyTimer = null;
+
+// 화면 가운데 안내 카드. kind 는 up(고속도로) / down(뱀) / catch(잡힘).
+function showCard(o) {
+  storyEl.className = o.kind;
+  storyEl.querySelector(".s-icon").textContent = o.icon;
+  storyEl.querySelector(".kicker").textContent = o.kicker;
+  storyEl.querySelector(".text").textContent = o.text;
+
+  // 칸 이동은 안내 페이지의 표와 같은 네모 칩으로 보여 준다
+  storyEl.querySelector(".move").innerHTML = (o.from === undefined) ? "" :
+    `<span class="chip from">${o.from}</span>` +
+    `<span class="arw">&rarr;</span>` +
+    `<span class="chip to">${o.to}</span>`;
+
+  void storyEl.offsetWidth;
+  storyEl.classList.add("show");
+
+  clearTimeout(storyTimer);
+  storyTimer = setTimeout(() => storyEl.classList.remove("show"), o.hold || 1700);
+}
+
+function showStory(n, kind, to) {
+  const up = (kind === "highway");
+  showCard({
+    kind:   up ? "up" : "down",
+    icon:   up ? "🚗" : "🐍",
+    kicker: up ? "고속도로" : "뱀에게 물렸다",
+    text:   STORIES[n] || "",
+    from:   n,
+    to:     to
+  });
+}
+
+const againNote = document.getElementById("againNote");
+let bonusPending = false;                 // 6 이 나와 한 번 더 굴릴 차례인가
+
+function updateBonusNote() {
+  const show = bonusPending && !state.over;
+  againNote.classList.toggle("show", show);
+  if (show) {
+    const p = PLAYERS[state.turn];
+    againNote.textContent = (p.id === "human")
+      ? "🎲 6이 나왔다! 한 번 더 굴리세요"
+      : "🎲 6이 나왔다! 컴퓨터가 한 번 더 굴립니다";
+    void againNote.offsetWidth;           // 애니메이션 다시 재생
+  }
+}
+
+function setRollEnabled(on) {
+  rollBtn.disabled = !on;
+  rollBtn.textContent = on ? (bonusPending ? "한 번 더 굴리기" : "주사위 굴리기") : "…";
+}
+
+const winnerEl = document.getElementById("winner");
+
+function showWinner(p) {
+  winnerEl.querySelector(".wico").textContent = p.icon;
+  winnerEl.querySelector(".wtitle").textContent = p.name + " 승리!";
+  winnerEl.querySelector(".wsub").textContent = "100번 칸에 먼저 도착했습니다";
+  winnerEl.classList.add("show");
+  sfxWin();
+}
+
+/* ==========================================================================
+   9. 턴 상태머신
+   ========================================================================== */
+
+async function takeTurn() {
+  if (busy || state.over) return;
+  busy = true;
+  againNote.classList.remove("show");     // 굴리기 시작하면 알림은 걷는다
+  setRollEnabled(false);
+
+  const p = PLAYERS[state.turn];
+  const dice = await rollDice();
+  log(`${p.name} · 주사위 ${dice}`, p.id);
+
+  const r = resolveMove(p.pos, dice);
+
+  if (r.bounced) {
+    await hopTo(p, 100);
+    log("100을 넘어 그만큼 되돌아온다", p.id);
+    await sleep(160);
+    await hopTo(p, r.landed);
+  } else {
+    await hopTo(p, r.landed);
+  }
+
+  if (r.jump) {
+    showStory(r.landed, r.jump, r.final);
+    await sleep(760);
+    await slideTo(p, r.final, r.jump);
+    log(`${r.landed} → ${r.final} · ${r.jump === "snake" ? "뱀에게 물렸다" : "고속도로를 탔다"}`, p.id);
+    await sleep(160);
+  }
+
+  // 밀어내기 — 뱀·고속도로까지 모두 끝난 최종 칸에서만 판정한다.
+  const other = PLAYERS[1 - state.turn];
+  if (!r.won && other.pos === p.pos && p.pos !== 1) {
+    const caughtAt = other.pos;
+    p.tok.classList.add("bump");
+    other.tok.classList.add("bump");
+    showCard({
+      kind:   "catch",
+      icon:   "💥",
+      kicker: "잡혔다",
+      text:   `${other.name}의 말이 ${p.name}에게 잡혀 1번 칸으로 돌아갑니다`,
+      from:   caughtAt,
+      to:     1,
+      hold:   2000
+    });
+    await sleep(560);
+    p.tok.classList.remove("bump");
+    other.tok.classList.remove("bump");
+    await knockTo(other, 1);
+    log(`${caughtAt}번에서 ${other.name}의 말을 잡아 1번으로 보냈다`, p.id);
+  }
+
+  updatePanel();
+
+  if (r.won) {
+    state.over = true;
+    updatePanel();
+    log(`100번 칸 도착 — ${p.name} 승리!`, "sys");
+    await sleep(400);
+    showWinner(p);
+    busy = false;
+    return;
+  }
+
+  // 6 은 한 번 더. 단 한 턴에 3연속이면 거기서 끝낸다.
+  sixStreak = (dice === 6) ? sixStreak + 1 : 0;
+  bonusPending = (dice === 6 && sixStreak < 3);
+
+  if (bonusPending) {
+    log(`6! ${p.name} 한 번 더 (${sixStreak}/3)`, p.id);
+  } else {
+    if (dice === 6) log("6이 세 번 연속 — 차례를 넘긴다", "sys");
+    sixStreak = 0;
+    state.turn = 1 - state.turn;
+  }
+
+  busy = false;
+  nextStep();
+}
+
+function nextStep() {
+  updatePanel();
+  updateBonusNote();
+  if (state.over) return;
+
+  if (PLAYERS[state.turn].id === "cpu") {
+    setRollEnabled(false);
+    setTimeout(takeTurn, 800);          // 컴퓨터는 뜸을 들이고 자동으로 굴린다
+  } else {
+    setRollEnabled(true);
+  }
+}
+
+/* ==========================================================================
+   10. 보드 모드 (원본 그림 / 레트로)
+   ========================================================================== */
+
+const BG_KEY = "snakegame.bg";
+
+function relayoutBoard() {
+  sizeTokens();
+  for (const p of PLAYERS) placeToken(p, p.pos, true);
+}
+
+function setBoardMode(mode) {
+  board.dataset.bg = (mode === "retro") ? "retro" : "photo";
+  // 소리 토글도 같은 .seg 클래스를 쓰므로 반드시 [data-bg] 로 좁힌다
+  for (const b of document.querySelectorAll(".seg[data-bg]")) {
+    b.classList.toggle("on", b.dataset.bg === board.dataset.bg);
+  }
+  try { localStorage.setItem(BG_KEY, board.dataset.bg); } catch (e) { /* 사생활 보호 모드 등 — 무시 */ }
+  requestAnimationFrame(relayoutBoard);
+}
+
+// 이미지 실제 크기를 읽어 종횡비에 반영한다. 그림을 갈아끼워도 좌표가 어긋나지 않는다.
+async function measureBoardImage() {
+  try {
+    const img = new Image();
+    img.src = "board.webp";
+    await img.decode();
+    document.documentElement.style.setProperty("--img-w", img.naturalWidth);
+    document.documentElement.style.setProperty("--img-h", img.naturalHeight);
+    relayoutBoard();
+  } catch (e) {
+    // 그림을 못 읽으면 레트로 보드로 물러난다
+    setBoardMode("retro");
+  }
+}
+
+// 격자 맞춤용 도구. __calibGrid(true) 로 빨간 눈금을 켜고 __setGrid 로 미세 조정한다.
+window.__calibGrid = on => board.classList.toggle("calib", on !== false);
+window.__setGrid = (l, t, w, h) => {
+  const s = document.documentElement.style;
+  s.setProperty("--grid-l", l + "%");
+  s.setProperty("--grid-t", t + "%");
+  s.setProperty("--grid-w", w + "%");
+  s.setProperty("--grid-h", h + "%");
+  relayoutBoard();
+  return [l, t, w, h];
+};
+
+/* ==========================================================================
+   11. 안내 페이지
+   ========================================================================== */
+
+const helpEl = document.getElementById("help");
+
+// 특수 칸 표는 게임 데이터에서 그대로 뽑는다. 규칙과 안내가 어긋날 일이 없다.
+function buildHelpTables() {
+  const rows = (map, cls) =>
+    Object.keys(map).map(Number).sort((a, b) => a - b).map(from =>
+      `<tr><td class="move ${cls}">` +
+      `<span class="chip from">${from}</span>` +
+      `<span class="arw">&rarr;</span>` +
+      `<span class="chip to">${map[from]}</span></td>` +
+      `<td class="story">${STORIES[from] || ""}</td></tr>`).join("");
+
+  const head = '<thead><tr><th>칸</th><th>무슨 일이 있었나</th></tr></thead><tbody>';
+
+  document.getElementById("tblUp").innerHTML   = head + rows(HIGHWAYS, "up") + "</tbody>";
+  document.getElementById("tblDown").innerHTML = head + rows(SNAKES, "down") + "</tbody>";
+}
+
+function openHelp() {
+  helpEl.classList.add("show");
+  helpEl.querySelector(".help-body").scrollTop = 0;
+  document.body.style.overflow = "hidden";     // 뒤쪽 페이지가 같이 스크롤되지 않게
+  document.getElementById("helpClose").focus();
+}
+
+function closeHelp() {
+  helpEl.classList.remove("show");
+  document.body.style.overflow = "";
+}
+
+/* ==========================================================================
+   12. 시작 · 초기화
+   ========================================================================== */
+
+function resetGame() {
+  state.turn = 0;
+  state.over = false;
+  sixStreak = 0;
+  bonusPending = false;
+  busy = false;
+
+  for (const p of PLAYERS) {
+    p.pos = 1;
+    placeToken(p, 1, true);
+  }
+
+  logEl.innerHTML = "";
+  winnerEl.classList.remove("show");
+  storyEl.classList.remove("show");
+  log("주사위를 굴려 1번에서 출발합니다", "sys");
+  nextStep();
+}
+
+function init() {
+  buildGrid();
+  buildOverlay();
+  buildTokens();
+  buildDice();
+  buildHelpTables();
+
+  let savedBg = null;
+  let savedSnd = null;
+  try {
+    savedBg = localStorage.getItem(BG_KEY);
+    savedSnd = localStorage.getItem(SND_KEY);
+  } catch (e) { /* 무시 */ }
+
+  setBoardMode(savedBg || "photo");         // 기본은 원본 그림
+  setSound(savedSnd !== "off");             // 기본은 소리 켬
+  measureBoardImage();
+
+  sizeTokens();
+  resetGame();
+
+  for (const b of document.querySelectorAll(".seg[data-bg]")) {
+    b.addEventListener("click", () => setBoardMode(b.dataset.bg));
+  }
+
+  for (const b of document.querySelectorAll(".seg[data-snd]")) {
+    b.addEventListener("click", () => {
+      setSound(b.dataset.snd === "on");
+      if (soundOn) sfxLand();               // 켜면 바로 들려 준다
+    });
+  }
+
+  rollBtn.addEventListener("click", takeTurn);
+
+  // 주사위를 눌러도 굴러간다 — 터치에서 가장 자연스러운 동작이다
+  diceStage.addEventListener("click", () => {
+    if (!rollBtn.disabled) takeTurn();
+  });
+
+  // 입력 방식에 맞는 안내를 준다. 마우스가 없는 기기에서 Space 를 알려 봐야 소용없다
+  const touchOnly = window.matchMedia("(hover: none)").matches;
+  document.querySelector(".hint").textContent = touchOnly
+    ? "주사위를 눌러도 굴릴 수 있습니다"
+    : "Space 키로도 굴릴 수 있습니다";
+
+  document.getElementById("againBtn").addEventListener("click", resetGame);
+  document.getElementById("newBtn").addEventListener("click", resetGame);
+
+  document.getElementById("helpBtn").addEventListener("click", openHelp);
+  document.getElementById("helpClose").addEventListener("click", closeHelp);
+  helpEl.addEventListener("click", e => {
+    if (e.target === helpEl) closeHelp();     // 바깥을 누르면 닫힌다
+  });
+
+  window.addEventListener("keydown", e => {
+    if (e.key === "Escape" && helpEl.classList.contains("show")) {
+      closeHelp();
+      return;
+    }
+
+    // 안내가 열려 있을 때는 Space 로 주사위가 굴러가지 않게 한다
+    if (e.code === "Space" && !rollBtn.disabled && !helpEl.classList.contains("show")) {
+      e.preventDefault();
+      takeTurn();
+    }
+  });
+
+  // 화면 크기가 바뀌면 칸 크기가 달라지므로 말을 다시 앉힌다.
+  // 휴대폰은 주소창이 접히거나 방향이 바뀔 때도 여기로 들어온다.
+  window.addEventListener("resize", relayoutBoard);
+  window.addEventListener("orientationchange", () => setTimeout(relayoutBoard, 250));
+}
+
+init();
+</script>
+</body>
+</html>
