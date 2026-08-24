@@ -318,15 +318,17 @@ table.cells tbody tr:nth-child(even) td { background: #fdf6d8; }
 table.cells td.story { white-space: normal; color: #6b5a1e; min-width: 9.5em; }
 table.cells td.move  { width: 1%; }
 
-/* 표 안의 칸 그림 — 앞은 「한 일」, 뒤는 「그래서 된 일」 */
+/* 표 안의 삽화 — 앞은 「한 일」, 뒤는 「그래서 된 일」 */
 .art {
-  display: inline-block;
-  width: 22px;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
   margin: 0 5px;
-  font-size: 15px;
-  text-align: center;
   vertical-align: middle;
 }
+
+.art .pic-svg { width: 100%; height: 100%; filter: none; }
 
 /* 칸 번호는 보드의 칸처럼 네모 칩으로. 폭을 고정해 위아래가 나란히 선다. */
 .chip {
@@ -497,13 +499,13 @@ td.down .arw { color: #1b7a22; }
   z-index: 1;
   display: grid;
   place-items: center;
-  font-size: clamp(11px, 3.2vmin, 29px);
-  line-height: 1;
-  /* 뱀·도로가 위로 지나가도 형체가 읽히도록 흰 테두리를 둘러 준다.
-     이모지는 컬러 글리프라 text-shadow 가 먹지 않아 drop-shadow 를 겹쳐 쓴다. */
-  filter:
-    drop-shadow(0 0 1.5px #fffbe8) drop-shadow(0 0 1.5px #fffbe8)
-    drop-shadow(0 0 3px rgba(255,251,232,.9));
+}
+
+.pic-svg {
+  width: 74%;
+  height: 74%;
+  /* 뱀·도로가 위로 지나가도 형체가 읽히도록 밝은 테두리를 둘러 준다 */
+  filter: drop-shadow(0 0 2px #fffbe8) drop-shadow(0 0 2px #fffbe8);
 }
 
 /* 번호와 표식은 뱀·도로(z:2) 위에 얹어야 가려지지 않는다 */
@@ -1488,6 +1490,19 @@ td.down .arw { color: #1b7a22; }
           시대와 무관한 것은 그대로 뒀습니다. 어느 쪽으로 놀아도 판의 흐름은 같습니다.
         </p>
 
+        <h2>그림이 인과를 말한다</h2>
+        <p>
+          요즘판의 칸 그림은 <b>시작 칸에 「한 일」, 도착 칸에 「그래서 된 일」</b>을 담았습니다.
+          글을 읽지 않고 그림만 좇아도 이야기가 읽힙니다 — 가방(일했다)에서 돈(목돈)으로,
+          주먹(때렸다)에서 돈이 빠져나가는 그림(합의금)으로, 새싹(심었다)에서 나무(숲)로.
+        </p>
+        <p>
+          원본 판에는 재미있는 성질이 하나 있습니다. <b>고속도로와 뱀이 쓰는 칸 50개가 모두
+          짝수</b>이고, 그것이 2번부터 100번까지의 짝수 전부입니다. 그래서 요즘판은 짝수 칸에만
+          그림을 두고 <b>홀수 칸은 비웠습니다</b> — 원본의 격자무늬가 살아나고, 뜻 없는 그림이
+          판을 어지럽히지 않습니다.
+        </p>
+
         <p class="note">
           뱀주사위놀이는 운이 전부인 놀이입니다. 고를 수 있는 것이 없으므로
           컴퓨터에게 난이도나 전략은 존재하지 않습니다. 이기고 지는 것은
@@ -1704,7 +1719,7 @@ const STORIES_MODERN = {
   28: "밤새 영상만 보다 시험을 망쳤다",
   30: "남의 담벼락에 낙서를 하다 붙잡혔다",
   44: "친구를 때려 합의금을 물어 주었다",
-  58: "남의 반려견을 발로 찼다가 쫓겨 달아났다",
+  58: "남의 반려견을 괴롭히다 물렸다",
   66: "남의 물건에 손을 대어 붙잡혀 갇혔다",
   68: "배달 음식을 욕심껏 먹다 배탈이 났다",
   72: "위험한 물건을 장난삼아 다루다 크게 다쳤다",
@@ -1727,18 +1742,91 @@ const STORIES_MODERN = {
 // 그 합집합이 2~100 의 짝수 50개 전부다. 즉 **홀수 칸은 하나도 인과에 쓰이지 않는다.**
 // 그래서 그림은 짝수 칸에만 두고 홀수 칸은 비워 둔다 — 원본의 격자무늬가 살아나고
 // 뜻 없는 그림이 판을 어지럽히지 않는다.
-const CELL_ART = {
-  2:  "🥶", 4:  "🧓", 6:  "📉", 8:  "🏋️", 10: "😠",
-  12: "🏆", 14: "🚔", 16: "👏", 18: "🌱", 20: "📞",
-  22: "⛸️", 24: "🫀", 26: "💸", 28: "📱", 30: "🖍️",
-  32: "📚", 34: "💼", 36: "🩺", 38: "🌳", 40: "🪴",
-  42: "🩹", 44: "👊", 46: "💰", 48: "♻️", 50: "🏥",
-  52: "🤢", 54: "🌍", 56: "🎓", 58: "🐕", 60: "🥕",
-  62: "🚄", 64: "🚒", 66: "👛", 68: "🍗", 70: "🛟",
-  72: "🧨", 74: "🏅", 76: "🔬", 78: "🩼", 80: "🏃",
-  82: "🌊", 84: "🤳", 86: "💡", 88: "🙏", 90: "🩸",
-  92: "❤️", 94: "🔥", 96: "🪓", 98: "🪜", 100: "🥇"
+// 삽화는 이모지가 아니라 직접 그린 SVG 다. 기기마다 그림이 달라지지 않고,
+// 보드의 뱀·고속도로와 같은 결(굵은 검정 외곽선 + 납작한 레트로 색)로 맞춰진다.
+// 모두 100x100 좌표계에 그린다. 외곽선·선끝 처리는 <svg> 에서 상속시켜 몸통만 적는다.
+const ART = {
+  // ── 고속도로 시작: 한 일
+  elder:    '<circle cx="40" cy="26" r="13" fill="#f5d0a9"/><path d="M40 39v30"/><path d="M40 47l-15 9M40 47l15 5"/><path d="M40 69l-9 19M40 69l9 19"/><path d="M68 34v54" stroke="#8a5a2b" stroke-width="6"/>',
+  weight:   '<path d="M24 50h52"/><rect x="12" y="34" width="12" height="32" rx="3" fill="#3f7fd4"/><rect x="76" y="34" width="12" height="32" rx="3" fill="#3f7fd4"/><rect x="28" y="40" width="9" height="20" rx="2" fill="#d94436"/><rect x="63" y="40" width="9" height="20" rx="2" fill="#d94436"/>',
+  sprout:   '<path d="M18 82h64"/><path d="M50 82V44"/><path d="M50 52c-16 0-20-12-20-12s16-4 20 12z" fill="#4faa33"/><path d="M50 44c14 0 18-11 18-11s-14-4-18 11z" fill="#4faa33"/>',
+  report:   '<path d="M30 20h40a10 10 0 0110 10v24a10 10 0 01-10 10H48L32 78V64h-2a10 10 0 01-10-10V30a10 10 0 0110-10z" fill="#3f7fd4"/><path d="M50 32v14" stroke="#fff9e4" stroke-width="7"/><path d="M50 56h.2" stroke="#fff9e4" stroke-width="8"/>',
+  cpr:      '<path d="M50 82S16 58 16 38a17 17 0 0134-9 17 17 0 0134 9c0 20-34 44-34 44z" fill="#d94436"/><path d="M28 44h12l6-12 6 24 6-12h12" stroke="#fff9e4" stroke-width="5"/>',
+  book:     '<path d="M50 30v46"/><path d="M50 30C38 22 24 24 16 28v42c10-4 24-5 34 4z" fill="#fff9e4"/><path d="M50 30c12-8 26-6 34-2v42c-10-4-24-5-34 4z" fill="#fff9e4"/>',
+  work:     '<rect x="16" y="36" width="68" height="46" rx="6" fill="#8a5a2b"/><path d="M38 36V26h24v10"/><path d="M16 56h68"/>',
+  pot:      '<path d="M50 54V34"/><path d="M50 42c-14 0-17-11-17-11s14-4 17 11z" fill="#4faa33"/><path d="M50 34c12 0 15-10 15-10s-12-3-15 10z" fill="#4faa33"/><path d="M26 54h48l-7 30H33z" fill="#c76a3a"/>',
+  recycle:  '<path d="M24 32h52l-6 52H30z" fill="#4faa33"/><path d="M14 32h72M40 22h20v10H40z"/><path d="M50 46c-11 7-11 22 0 29 11-7 11-22 0-29z" fill="#fff9e4"/>',
+  buoy:     '<circle cx="50" cy="50" r="30" fill="#d94436"/><circle cx="50" cy="50" r="13" fill="#fff9e4"/><path d="M50 20v14M50 66v14M20 50h14M66 50h14" stroke="#fff9e4" stroke-width="8"/>',
+  flask:    '<path d="M36 18h28"/><path d="M42 20v20L24 74a7 7 0 006 10h40a7 7 0 006-10L58 40V20z" fill="#8fd3f4"/><circle cx="44" cy="66" r="4" fill="#fff9e4"/><circle cx="58" cy="73" r="3" fill="#fff9e4"/>',
+  runner:   '<circle cx="60" cy="22" r="11" fill="#f5d0a9"/><path d="M54 36l-8 22 14 8"/><path d="M46 58l-18 6M60 66l6 20M46 42l-18 4M56 40l18 12"/>',
+  blood:    '<path d="M50 14s24 28 24 42a24 24 0 01-48 0c0-14 24-42 24-42z" fill="#d94436"/><path d="M50 44v20M40 54h20" stroke="#fff9e4" stroke-width="7"/>',
+
+  // ── 뱀 시작: 한 일
+  skate:    '<path d="M10 84h80" stroke="#8fd3f4" stroke-width="8"/><path d="M38 16h16v42h18v12H38z" fill="#3f7fd4"/><path d="M30 76h48" stroke-width="6"/>',
+  phone:    '<rect x="30" y="12" width="40" height="70" rx="9" fill="#2b2410"/><rect x="36" y="24" width="28" height="44" rx="3" fill="#8fd3f4" stroke="none"/><path d="M44 34l16 12-16 12z" fill="#2b2410" stroke="none"/>',
+  graffiti: '<rect x="12" y="24" width="76" height="54" rx="4" fill="#b9b09a"/><path d="M24 62c8-20 15 10 21-12s11 18 17 3 8 7 14 1" stroke="#d94436" stroke-width="7"/>',
+  impact:   '<path d="M50 8l11 24 24-11-11 24 24 11-24 11 11 24-24-11-11 24-11-24-24 11 11-24-24-11 24-11-11-24 24 11z" fill="#d94436"/>',
+  dog:      '<path d="M28 34L18 16l20 6M72 34l10-18-20 6" fill="#8a5a2b"/><path d="M28 30h44c7 0 11 6 11 15 0 17-15 29-33 29S17 62 17 45c0-9 4-15 11-15z" fill="#c98b4b"/><circle cx="40" cy="48" r="4" fill="#2b2410" stroke="none"/><circle cx="60" cy="48" r="4" fill="#2b2410" stroke="none"/><path d="M50 58v8"/>',
+  wallet:   '<rect x="14" y="34" width="72" height="44" rx="7" fill="#8a5a2b"/><path d="M14 48h72"/><circle cx="68" cy="63" r="6" fill="#f4c02e"/><path d="M30 26l14 8M54 20l6 14" stroke-width="5"/>',
+  burger:   '<path d="M16 42c0-15 15-26 34-26s34 11 34 26z" fill="#e0a057"/><path d="M16 46h68" stroke="#4faa33" stroke-width="8"/><path d="M16 58h68" stroke="#d94436" stroke-width="8"/><path d="M16 66c0 11 15 18 34 18s34-7 34-18z" fill="#e0a057"/>',
+  bomb:     '<circle cx="44" cy="62" r="26" fill="#2b2410"/><path d="M62 42l14-14" stroke-width="7"/><path d="M78 26l6-10M84 32l12-6M78 16l2-12" stroke="#d94436" stroke-width="6"/>',
+  selfie:   '<path d="M34 52h32M26 68h48M16 86h68" stroke="#8a5a2b" stroke-width="8"/><path d="M14 88L40 46M86 88L60 46" stroke="#b9b09a" stroke-width="9"/><rect x="34" y="6" width="32" height="34" rx="5" fill="#2b2410"/><circle cx="50" cy="16" r="4" fill="#8fd3f4" stroke="none"/>',
+  fire:     '<path d="M50 10c15 20 4 24 13 30 6-4 6-11 6-11 9 13 11 24 11 30a30 30 0 01-60 0c0-15 13-24 17-32 3 7 9 7 9 0 0-6-2-11 4-17z" fill="#d94436"/><path d="M50 80a15 15 0 01-9-26c2 9 11 9 11 2 6 7 8 11 8 15a10 10 0 01-10 9z" fill="#f4c02e"/>',
+  axe:      '<path d="M20 86L64 34" stroke="#8a5a2b" stroke-width="10"/><path d="M58 12c15 0 26 11 26 24-11 4-19 2-26-4-8 6-15 4-19-2 4-11 11-18 19-18z" fill="#b9b09a"/>',
+  ladder:   '<path d="M32 12v76M68 12v76"/><path d="M32 30h36M32 50h36M32 70h36"/>',
+
+  // ── 고속도로 도착: 그래서 된 일
+  thumbup:  '<path d="M32 44H20a7 7 0 00-7 7v27a7 7 0 007 7h12z" fill="#f5d0a9"/><path d="M32 44l15-28a9 9 0 0115 9l-4 13h18a9 9 0 019 11l-7 26a11 11 0 01-11 10H32z" fill="#f5d0a9"/>',
+  trophy:   '<path d="M30 16h40v22a20 20 0 01-40 0z" fill="#f4c02e"/><path d="M30 22H16c0 14 7 19 14 19M70 22h14c0 14-7 19-14 19"/><path d="M50 58v14"/><path d="M32 84h36" stroke-width="8"/>',
+  tree:     '<path d="M50 86V56" stroke="#8a5a2b" stroke-width="9"/><circle cx="50" cy="36" r="24" fill="#4faa33"/><circle cx="28" cy="50" r="15" fill="#4faa33"/><circle cx="72" cy="50" r="15" fill="#4faa33"/>',
+  medal:    '<path d="M32 12l12 28M68 12L56 40" stroke="#3f7fd4" stroke-width="8"/><circle cx="50" cy="62" r="23" fill="#f4c02e"/><path d="M50 50v22M40 62h20" stroke-width="5"/>',
+  doctor:   '<circle cx="50" cy="22" r="13" fill="#f5d0a9"/><path d="M26 86V58a24 24 0 0148 0v28z" fill="#fff9e4"/><path d="M50 62v20M40 72h20" stroke="#d94436" stroke-width="7"/>',
+  cap:      '<path d="M10 40L50 22l40 18-40 18z" fill="#2b2410"/><path d="M24 50v16c0 7 12 11 26 11s26-4 26-11V50"/><path d="M84 46v24" stroke="#f4c02e" stroke-width="6"/>',
+  money:    '<rect x="12" y="28" width="58" height="36" rx="4" fill="#4faa33"/><circle cx="41" cy="46" r="10" fill="#fff9e4"/><circle cx="70" cy="64" r="16" fill="#f4c02e"/><path d="M70 54v20M62 64h16" stroke-width="5"/>',
+  carrot:   '<path d="M50 32l24 44-48 8z" fill="#e07b2a"/><path d="M50 32V14M50 22l16-8M50 22l-16-8" stroke="#4faa33" stroke-width="7"/>',
+  earth:    '<circle cx="50" cy="50" r="31" fill="#3f7fd4"/><path d="M19 50h62M50 19c13 13 13 49 0 62M50 19c-13 13-13 49 0 62"/>',
+  rosette:  '<circle cx="50" cy="34" r="21" fill="#d94436"/><path d="M50 22l5 10h10l-8 8 3 11-10-6-10 6 3-11-8-8h10z" fill="#f4c02e" stroke="none"/><path d="M36 52l-8 34 16-9 6 9 6-9 16 9-8-34" fill="#d94436"/>',
+  bulb:     '<path d="M50 12a24 24 0 0115 43v9H35v-9a24 24 0 0115-43z" fill="#f4c02e"/><path d="M36 74h28M42 86h16" stroke-width="6"/><path d="M12 28l11 5M88 28l-11 5M16 60l12-5M84 60l-12-5" stroke="#f4c02e" stroke-width="5"/>',
+  crown:    '<path d="M14 70L8 28l24 15L50 14l18 29 24-15-6 42z" fill="#f4c02e"/><path d="M14 82h72" stroke-width="8"/>',
+  heart:    '<path d="M50 86S16 60 16 38a19 19 0 0134-9 19 19 0 0134 9c0 22-34 48-34 48z" fill="#d94436"/><path d="M18 14l6 8M82 14l-6 8M8 38h8M84 38h8" stroke="#f4c02e" stroke-width="5"/>',
+
+  // ── 뱀 도착: 그래서 된 일
+  icewater: '<path d="M8 56q13-11 26 0t26 0t26 0" stroke="#3f7fd4" stroke-width="8"/><path d="M8 76q13-11 26 0t26 0t26 0" stroke="#3f7fd4" stroke-width="8"/><circle cx="50" cy="30" r="14" fill="#f5d0a9"/><path d="M38 18l-9 9M62 18l9 9" stroke-width="5"/>',
+  down:     '<path d="M16 14v72h72" stroke-width="7"/><path d="M28 30l16 22 12-10 20 30" stroke="#d94436" stroke-width="8"/><path d="M80 76l4-16-16 4z" fill="#d94436" stroke="none"/>',
+  angry:    '<circle cx="50" cy="50" r="31" fill="#f4c02e"/><path d="M30 34l16 9M70 34l-16 9" stroke-width="6"/><circle cx="39" cy="53" r="4" fill="#2b2410" stroke="none"/><circle cx="61" cy="53" r="4" fill="#2b2410" stroke="none"/><path d="M36 72q14-9 28 0" stroke-width="6"/>',
+  moneyout: '<rect x="14" y="22" width="58" height="36" rx="4" fill="#4faa33"/><circle cx="43" cy="40" r="9" fill="#fff9e4"/><path d="M50 64v18M38 74l12 12 12-12" stroke="#d94436" stroke-width="8"/>',
+  bandaid:  '<g transform="rotate(-28 50 50)"><rect x="14" y="38" width="72" height="24" rx="12" fill="#f0c48a"/><circle cx="50" cy="50" r="9" fill="#fff9e4"/></g>',
+  jail:     '<rect x="12" y="16" width="76" height="68" rx="4" fill="#b9b09a"/><path d="M31 16v68M50 16v68M69 16v68" stroke-width="8"/>',
+  sick:     '<circle cx="50" cy="50" r="31" fill="#8fc46a"/><path d="M32 40h13M55 40h13" stroke-width="6"/><path d="M34 68q8-9 16 0t16 0" stroke-width="6"/>',
+  hospital: '<path d="M16 40L50 16l34 24v46H16z" fill="#fff9e4"/><path d="M50 48v26M36 61h28" stroke="#d94436" stroke-width="10"/>',
+  train:    '<rect x="24" y="12" width="52" height="48" rx="12" fill="#3f7fd4"/><rect x="34" y="22" width="32" height="18" rx="3" fill="#8fd3f4"/><circle cx="37" cy="50" r="5" fill="#f4c02e"/><circle cx="63" cy="50" r="5" fill="#f4c02e"/><circle cx="38" cy="68" r="8" fill="#2b2410"/><circle cx="62" cy="68" r="8" fill="#2b2410"/><path d="M10 82h80" stroke-width="8"/>',
+  extinct:  '<path d="M34 32h32v52H34z" fill="#d94436"/><path d="M42 32V20h16v12"/><path d="M66 40l18-12" stroke-width="7"/><path d="M14 18q12 9 5 20" stroke="#8fd3f4" stroke-width="7"/>',
+  landslide:'<path d="M8 76L38 30l16 24 14-20 24 42z" fill="#8a5a2b"/><path d="M8 84h84" stroke-width="8"/><path d="M28 58q11-9 20 0t20 0" stroke="#3f7fd4" stroke-width="7"/>',
+  bed:      '<path d="M10 80V52h54a18 18 0 0118 18v10z" fill="#8fd3f4"/><path d="M10 80v10M82 80v10"/><circle cx="28" cy="40" r="10" fill="#f5d0a9"/><path d="M40 52h26" stroke="#fff9e4" stroke-width="7"/>'
 };
+
+// 칸 번호 → 삽화 이름. 시작 칸에는 「한 일」, 도착 칸에는 「그래서 된 일」이 온다.
+const CELL_ART = {
+  2:  "icewater", 4:  "elder",    6:  "down",      8:  "weight",   10: "angry",
+  12: "trophy",   14: "jail",     16: "thumbup",   18: "sprout",   20: "report",
+  22: "skate",    24: "cpr",      26: "moneyout",  28: "phone",    30: "graffiti",
+  32: "book",     34: "work",     36: "doctor",    38: "tree",     40: "pot",
+  42: "bandaid",  44: "impact",   46: "money",     48: "recycle",  50: "hospital",
+  52: "sick",     54: "earth",    56: "cap",       58: "dog",      60: "carrot",
+  62: "train",    64: "extinct",  66: "wallet",    68: "burger",   70: "buoy",
+  72: "bomb",     74: "medal",    76: "flask",     78: "bed",      80: "runner",
+  82: "landslide", 84: "selfie",  86: "bulb",      88: "rosette",  90: "blood",
+  92: "heart",    94: "fire",     96: "axe",       98: "ladder",   100: "crown"
+};
+
+// 삽화 하나를 SVG 로 만든다. 외곽선·선끝은 <svg> 에 두어 각 도형이 상속한다.
+function artSvg(n) {
+  const body = ART[CELL_ART[n]];
+  if (!body) return "";
+  return '<svg class="pic-svg" viewBox="0 0 100 100" fill="none" stroke="#2b2410" ' +
+         'stroke-width="5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+         body + "</svg>";
+}
 
 // 지금 보드에 맞는 이야기. 보드를 바꾸면 칸에 붙은 이야기도 함께 바뀐다.
 function stories() {
@@ -1830,7 +1918,8 @@ function buildGrid() {
     else if (SNAKES[n] !== undefined) badge = '<span class="badge">&#128013;</span>';
 
     // 그림은 번호·표식 아래, 뱀·고속도로 아래에 깔린다 (원본 판도 그림 위로 뱀이 지난다)
-    const art = CELL_ART[n] ? '<span class="pic">' + CELL_ART[n] + "</span>" : "";
+    const svg = artSvg(n);
+    const art = svg ? '<span class="pic">' + svg + "</span>" : "";
     el.innerHTML = art + '<span class="num">' + n + "</span>" + badge;
     grid.appendChild(el);
     cellEls[n] = el;
@@ -2636,11 +2725,11 @@ function buildHelpTables() {
   const rows = (map, cls) =>
     Object.keys(map).map(Number).sort((a, b) => a - b).map(from =>
       `<tr><td class="move ${cls}">` +
-      `<span class="art">${CELL_ART[from] || ""}</span>` +
+      `<span class="art">${artSvg(from)}</span>` +
       `<span class="chip from">${from}</span>` +
       `<span class="arw">&rarr;</span>` +
       `<span class="chip to">${map[from]}</span>` +
-      `<span class="art">${CELL_ART[map[from]] || ""}</span></td>` +
+      `<span class="art">${artSvg(map[from])}</span></td>` +
       `<td class="story">${STORIES_CLASSIC[from] || ""}</td>` +
       `<td class="story">${STORIES_MODERN[from] || ""}</td></tr>`).join("");
 
