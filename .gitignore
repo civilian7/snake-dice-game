@@ -1,3 +1,6 @@
 # 브라우저 검증 중에 생기는 것들
 /*.png
 .playwright-mcp/
+
+__pycache__/
+*.pyc

@@ -508,6 +508,21 @@ td.down .arw { color: #1b7a22; }
   filter: drop-shadow(0 0 2px #fffbe8) drop-shadow(0 0 2px #fffbe8);
 }
 
+/* art/NNN.webp 가 있으면 그 삽화가 칸을 꽉 채우고 SVG 픽토그램을 덮는다.
+   (원본 판도 칸마다 그림이 가장자리까지 차 있다) */
+.pic-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
+/* 그림이 실제로 뜬 칸에서만 픽토그램을 숨긴다.
+   보드 전체에 걸면 아직 안 만든 칸까지 빈칸이 되어 버린다. */
+.pic.has-img .pic-svg { display: none; }
+
 /* 번호와 표식은 뱀·도로(z:2) 위에 얹어야 가려지지 않는다 */
 .cell .num {
   position: absolute;
@@ -1819,6 +1834,63 @@ const CELL_ART = {
   92: "heart",    94: "fire",     96: "axe",       98: "ladder",   100: "crown"
 };
 
+/* art/ 에 삽화가 있으면 SVG 픽토그램 대신 그것을 쓴다.
+   그림 만들기: docs/art-prompts.md (프롬프트) · tools/gen-art.py (자동 생성)
+
+   어떤 칸이 있는지는 art/manifest.json 을 읽어 안다 — 그래야 아직 안 만든 칸을
+   요청하지 않아 404 가 쏟아지지 않는다. file:// 로 열면 fetch 가 막히므로
+   그때는 4번 칸을 찔러 보고 전부 붙인 뒤 실패한 것만 걷어낸다. */
+const ART_IMG_DIR = "art/";
+const ART_IMG_PROBE = 4;
+
+function artImgSrc(n) {
+  return ART_IMG_DIR + String(n).padStart(3, "0") + ".webp";
+}
+
+function attachArtImage(n, dropOnError) {
+  const pic = cellEls[n] && cellEls[n].querySelector(".pic");
+  if (!pic || pic.querySelector(".pic-img")) return;
+
+  const img = document.createElement("img");
+  img.className = "pic-img";
+  img.src = artImgSrc(n);
+  img.alt = "";
+  img.loading = "lazy";
+  img.onload = () => pic.classList.add("has-img");   // 뜬 칸만 픽토그램을 감춘다
+  if (dropOnError) img.onerror = () => img.remove();
+  pic.appendChild(img);
+}
+
+async function useArtImages() {
+  let answered = false;                       // 매니페스트가 「없다」고 분명히 답했는가
+
+  try {
+    const res = await fetch(ART_IMG_DIR + "manifest.json", { cache: "no-cache" });
+    answered = true;                          // 서버가 답했다 — 404 라도 답은 답이다
+    if (res.ok) {
+      const list = await res.json();
+      const cells = Array.isArray(list) ? list.filter(n => CELL_ART[n]) : [];
+      for (const n of cells) attachArtImage(n, false);
+      if (cells.length) board.classList.add("art-images");
+      return;
+    }
+  } catch (e) { /* file:// 이라 fetch 자체가 막혔다 — 아래로 내려간다 */ }
+
+  if (answered) return;                       // 서버에 매니페스트가 없다 = 삽화도 없다
+
+  // file:// 일 때만: 한 장 찔러 보고 있으면 전부 붙인다
+  try {
+    const probe = new Image();
+    probe.src = artImgSrc(ART_IMG_PROBE);
+    await probe.decode();
+  } catch (e) {
+    return;                                   // 삽화가 없다 — 픽토그램 그대로
+  }
+
+  for (const key in CELL_ART) attachArtImage(+key, true);
+  board.classList.add("art-images");
+}
+
 // 삽화 하나를 SVG 로 만든다. 외곽선·선끝은 <svg> 에 두어 각 도형이 상속한다.
 function artSvg(n) {
   const body = ART[CELL_ART[n]];
@@ -2827,6 +2899,7 @@ function init() {
   loadOptions();
   setBoardMode(OPTIONS.board);
   measureBoardImage();
+  useArtImages();                 // art/ 에 그림이 있으면 픽토그램 대신 그것을 쓴다
 
   sizeTokens();
   resetGame(false);               // 설정 창 뒤에서 선 카드가 깜빡이지 않게 조용히
