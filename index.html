@@ -1497,8 +1497,8 @@ td.down .arw { color: #1b7a22; }
           <li><b>6이 나오면 한 번 더</b> — 6이 나온 사람이 이어서 한 번 더 굴립니다.
               다만 한 차례에 6이 <b>세 번 연속</b> 나오면 거기서 차례가 넘어갑니다.</li>
           <li><b>앞말 잡기</b> — 고속도로와 뱀까지 모두 처리한 <b>최종 칸</b>에 상대 말이
-              서 있으면 그 말을 <b>보드 밖으로</b> 밀어냅니다. 처음부터 다시 올라와야 하니
-              끝까지 마음을 놓을 수 없습니다.</li>
+              서 있으면 그 말을 <b>1번 칸으로</b> 돌려보냅니다. 다 온 말을 처음으로
+              보낼 수 있어 끝까지 마음을 놓을 수 없습니다.</li>
         </ul>
 
         <h2>화면</h2>
@@ -1557,7 +1557,7 @@ td.down .arw { color: #1b7a22; }
       </label>
 
       <label class="opt">
-        <span class="opt-name">앞말 잡기<em>같은 칸에 닿으면 상대를 보드 밖으로</em></span>
+        <span class="opt-name">앞말 잡기<em>같은 칸에 닿으면 상대를 1번 칸으로</em></span>
         <input type="checkbox" data-opt="catchOpponent">
         <span class="sw"></span>
       </label>
@@ -2367,8 +2367,10 @@ async function takeTurn() {
   }
 
   // 앞말 잡기(옵션) — 뱀·고속도로까지 모두 끝난 최종 칸에서만 판정한다.
+  // 출발 전(0번)은 아직 판 위가 아니라 겹칠 일이 없고, 1번에서 잡아 봐야
+  // 되돌려 보낼 곳이 그 자리라 의미가 없다. 그래서 2번 칸부터 따진다.
   const other = PLAYERS[1 - state.turn];
-  if (OPTIONS.catchOpponent && !r.won && other.pos === p.pos && p.pos > 0) {
+  if (OPTIONS.catchOpponent && !r.won && other.pos === p.pos && p.pos > 1) {
     const caughtAt = other.pos;
     p.tok.classList.add("bump");
     other.tok.classList.add("bump");
@@ -2376,15 +2378,15 @@ async function takeTurn() {
       kind:   "catch",
       icon:   "💥",
       kicker: "잡혔다",
-      text:   `${other.name}의 말이 ${p.name}에게 잡혀 보드 밖으로 밀려납니다`,
+      text:   `${other.name}의 말이 ${p.name}에게 잡혀 1번 칸으로 돌아갑니다`,
       from:   caughtAt,
-      to:     0,
+      to:     1,
       hold:   2000
     });
     await sleep(560);
     p.tok.classList.remove("bump");
     other.tok.classList.remove("bump");
-    await knockTo(other, 0);
+    await knockTo(other, 1);
   }
 
   updatePanel();
