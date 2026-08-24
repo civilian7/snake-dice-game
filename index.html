@@ -649,9 +649,16 @@ td.down .arw { color: #1b7a22; }
   border: 4px double #fff;
 }
 
+/* 카드가 좁아져도 「1번 / 칸」처럼 글자가 접히지 않게 한다 */
+.pcard > div { min-width: 0; }
+.pcard .pname,
+.pcard .ppos,
+.pcard .pturn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 .pcard .pname { font-weight: 700; font-size: 15px; }
 .pcard .ppos  { font-size: 12px; color: #a49c86; margin-top: 2px; }
 .pcard .pturn {
+  flex: none;
   margin-left: auto;
   font-size: 11px;
   font-weight: 700;
@@ -902,8 +909,10 @@ td.down .arw { color: #1b7a22; }
 #winner .wtitle { font-size: 26px; font-weight: 900; color: #ffe25a; margin: 6px 0 4px; }
 #winner .wsub { color: #a49c86; font-size: 13px; margin-bottom: 20px; }
 
+.wbtns { display: flex; gap: 10px; justify-content: center; }
+
 .btn-again {
-  padding: 12px 30px;
+  padding: 12px 26px;
   font-size: 15px;
   font-weight: 800;
   font-family: inherit;
@@ -914,6 +923,22 @@ td.down .arw { color: #1b7a22; }
   border-radius: 11px;
   cursor: pointer;
 }
+
+.btn-again:active { transform: translateY(2px); border-bottom-width: 2px; }
+
+.btn-quit {
+  padding: 12px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  color: #a49c86;
+  background: transparent;
+  border: 1px solid #6a5c22;
+  border-radius: 11px;
+  cursor: pointer;
+}
+
+.btn-quit:hover { color: #eee7d2; border-color: #a49c86; }
 
 .btn-ghost {
   width: 100%;
@@ -1175,62 +1200,95 @@ td.down .arw { color: #1b7a22; }
   .players .pcard .pico { width: 32px; height: 32px; flex: 0 0 32px; font-size: 17px; }
   .players .pcard .pname { font-size: 14px; }
   .players .pcard .pturn { font-size: 10px; padding: 2px 7px; }
+}
 
+/* 휴대폰에서는 카드를 더 눌러 담아 남는 높이를 보드에 넘긴다 */
+@media (max-width: 700px) {
+  .players { gap: 8px; }
+  .players .pcard { padding: 7px 9px; gap: 7px; }
+  .players .pcard .pico { width: 28px; height: 28px; flex: 0 0 28px; font-size: 15px; }
+  .players .pcard .pname { font-size: 13px; }
+  .players .pcard .ppos { font-size: 11px; }
+
+  /* 「내 차례」 배지는 자리를 50px 넘게 먹어 칸 수가 잘린다.
+     좁은 화면에서는 배지를 빼고 카드 자체의 강조로 누구 차례인지 보인다. */
+  .players .pcard .pturn { display: none; }
+  .players .pcard.active .pname { color: #ffe25a; }
+  .players .pcard.active { box-shadow: inset 0 0 0 1px #6a5c22; }
 }
 
 /* ---------- 휴대폰 세로 ---------- */
 
 @media (max-width: 700px) {
-  body { padding: calc(10px + env(safe-area-inset-top)) 10px calc(20px + env(safe-area-inset-bottom)); }
+  body { padding: calc(8px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom)); }
 
-  #app { gap: 12px; }
+  /* 화면 하나에 다 들어가야 한다 — 스크롤하며 주사위를 굴릴 수는 없다.
+     본문을 세로 플렉스로 세우고, 남는 높이는 전부 보드가 가져간다. */
+  html { height: 100%; }
+  body { height: 100%; display: flex; flex-direction: column; }
+  body.no-scroll { overflow: hidden; }
 
-  .masthead { margin-bottom: 10px; gap: 8px; row-gap: 8px; }
-  .masthead h1 { font-size: 20px; }
-  .mast-btns { margin-left: 0; width: 100%; gap: 6px; }
-  .mast-btns .seg-lbl { display: none; }
+  /* 세로 플렉스 안에서 margin:0 auto 가 남아 있으면 폭이 fit-content 로 쪼그라든다.
+     (#boardWrap 에서 겪은 것과 같은 함정 — 자동 여백이 stretch 를 이긴다) */
+  .masthead, #app { width: 100%; margin-left: 0; margin-right: 0; }
+
+  #app { flex: 1 1 auto; min-height: 0; gap: 8px; }
+  #boardWrap { flex: 1 1 auto; min-height: 0; align-items: center; overflow: hidden; }
+  #panel { flex: none; gap: 8px; }
+
+  .masthead { flex: none; margin-bottom: 8px; gap: 8px; row-gap: 6px; }
+  .masthead h1 { font-size: 17px; }
+  .mast-btns { margin-left: auto; gap: 6px; }
+  .mast-btns .seg-lbl,
   .mast-btns .divider { display: none; }
 
-  /* 손가락으로 누를 수 있는 크기(≥40px)로 키우고, 네 개가 한 줄에 고르게 들어가게 한다 */
-  .mast-btns .seg,
   .mast-btns .btn-mast {
-    flex: 1 1 0;
-    min-width: 0;
-    min-height: 40px;
-    padding: 8px 4px;
+    min-height: 38px;
+    padding: 7px 10px;
     font-size: 12.5px;
     white-space: nowrap;
   }
 
-  /* 보드가 화면 높이를 넘지 않게 폭을 높이로 역산한다.
-     svh 는 주소창이 펼쳐진 상태 기준이라 어떤 순간에도 잘리지 않는다. */
-  #boardWrap { padding: 8px; border-radius: 10px; }
-  #board {
-    width: min(100%, calc((100vh - 300px) * var(--img-w) / var(--img-h)));
-    width: min(100%, calc((100svh - 300px) * var(--img-w) / var(--img-h)));
-    min-width: 250px;
+  .mast-btns .btn-mast.icon { width: 38px; padding: 0; }
+
+  /* 보드 크기는 fitBoard() 가 남은 높이를 실제로 재서 px 로 정한다.
+     상수로 어림하면 기기마다 어긋난다(-300px 로 두었더니 36px 넘쳤다). */
+  #boardWrap { padding: 6px; border-radius: 10px; }
+  #board { width: auto; }
+
+  /* 버튼 글자만으로 충분하다. 한 줄이라도 아껴 보드에 준다 */
+  .hint { display: none; }
+
+  /* 주사위는 보드 위로 띄운다. 보드에서 칸이 없는 곳은 제목 띠뿐이라 거기에 얹으면
+     칸을 하나도 가리지 않으면서 패널에서 주사위가 쓰던 높이를 통째로 보드에 넘길 수 있다.
+     자리는 fitBoard() 가 보드 위치를 재서 잡는다. */
+  .dice-stage {
+    position: fixed;
+    z-index: 30;
+    width: 62px;
+    height: 62px;
+    perspective: 420px;
+    border-radius: 16px;
+    background: rgba(16, 14, 10, .55);
+    border: 1px solid rgba(255, 226, 90, .38);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
   }
 
-  /* 주사위와 굴리기 버튼을 한 줄에 — 세로로 쌓으면 버튼이 화면 밖으로 밀린다 */
+  .dice { --dz: 23px; width: 46px; height: 46px; }
+  .face { padding: 5px; gap: 2px; border-radius: 8px; }
+
+  /* 남은 것은 굴리기 버튼뿐이라 카드 껍데기가 필요 없다 */
   .dice-box {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-areas:
-      "dice roll"
-      "note note"
-      "hint hint";
-    align-items: center;
-    gap: 8px 12px;
-    padding: 10px 12px;
+    display: block;
+    padding: 0;
+    background: none;
+    border: none;
   }
 
-  .dice-stage { grid-area: dice; width: 68px; height: 68px; perspective: 460px; }
-  .dice { --dz: 26px; width: 52px; height: 52px; }
-  .face { padding: 6px; gap: 2px; border-radius: 9px; }
-
-  #rollBtn { grid-area: roll; min-height: 52px; font-size: 17px; }
-  #againNote { grid-area: note; }
-  .hint { grid-area: hint; }
+  #againNote { margin-bottom: 8px; }
+  #rollBtn { min-height: 54px; font-size: 17px; }
 
   .seg-row { padding: 6px 10px; }
   .seg-row .seg { min-height: 40px; }
@@ -1418,12 +1476,10 @@ td.down .arw { color: #1b7a22; }
           <li>미끄러지거나 뛰어오른 칸에서 또 발동하는 <b>연쇄는 없습니다</b>.</li>
         </ul>
 
-        <h2>100번 칸은 정확히</h2>
+        <h2>끝내기</h2>
         <p>
-          100을 <b>넘어가면 넘어간 만큼 되돌아옵니다</b>. 97번에서 6이 나오면
-          100을 찍고 3칸 되돌아와 97번에 섭니다. 되돌아온 칸에 뱀이나 고속도로가
-          있으면 그것은 <b>발동합니다</b> — 96번에서 6이 나오면 98번으로 되돌아왔다가
-          뱀에게 물려 78번까지 떨어집니다.
+          <b>100번 칸에 닿으면 이깁니다.</b> 눈이 남아 100을 넘어가도 그냥 이깁니다 —
+          99번에서 6이 나오면 거기서 끝입니다. 원본 판의 「100에 도달하면 우승」 그대로입니다.
         </p>
 
         <h2>덧붙이는 규칙</h2>
@@ -1530,7 +1586,10 @@ td.down .arw { color: #1b7a22; }
   <div class="wico"></div>
   <div class="wtitle"></div>
   <div class="wsub"></div>
-  <button class="btn-again" id="againBtn">다시 하기</button>
+  <div class="wbtns">
+    <button class="btn-again" id="againBtn">다시 하기</button>
+    <button class="btn-quit" id="quitBtn">그만하기</button>
+  </div>
 </div></div>
 
 <script>
@@ -1610,8 +1669,10 @@ function cellCenter(n) {
 
 function resolveMove(from, dice) {
   const walkTo = from + dice;
-  const bounced = walkTo > 100;
-  const landed = bounced ? 200 - walkTo : walkTo;   // 100 을 넘은 만큼 되돌아온다
+
+  // 위키 원문대로 「100에 도달하면 우승」 — 눈이 남아 넘어가도 그냥 이긴다.
+  // 99에서 6이 나오면 거기서 끝이지, 되돌아오지 않는다.
+  const landed = Math.min(walkTo, 100);
 
   let jump = null;
   let final = landed;
@@ -1624,7 +1685,7 @@ function resolveMove(from, dice) {
     final = SNAKES[landed];
   }
 
-  return { walkTo, bounced, landed, jump, final, won: final === 100 };
+  return { walkTo, landed, jump, final, won: final === 100 };
 }
 
 /* ==========================================================================
@@ -2274,14 +2335,7 @@ async function takeTurn() {
 
   const r = resolveMove(p.pos, dice);
 
-  if (r.bounced) {
-    // 100 을 찍고 넘어간 만큼 되돌아온다 — 두 번에 나눠 걸어야 눈에 보인다
-    await hopTo(p, 100);
-    await sleep(220);
-    await hopTo(p, r.landed);
-  } else {
-    await hopTo(p, r.landed);
-  }
+  await hopTo(p, r.landed);
 
   if (r.jump) {
     showStory(r.landed, r.jump, r.final);
@@ -2352,7 +2406,50 @@ function nextStep() {
    10. 보드 모드 (원본 그림 / 레트로)
    ========================================================================== */
 
+const boardWrap = document.getElementById("boardWrap");
+const PHONE_PORTRAIT = "(max-width: 700px) and (orientation: portrait)";
+
+// 휴대폰 세로에서는 화면 하나에 다 들어가야 한다 — 스크롤을 오가며 주사위를 굴릴 수는 없다.
+// 보드를 감싼 틀에 실제로 남은 높이를 재서 크기를 정한다. 상수로 어림하면 기기마다 어긋난다.
+function fitBoard() {
+  if (!window.matchMedia(PHONE_PORTRAIT).matches) {
+    board.style.removeProperty("width");
+    document.body.classList.remove("no-scroll");
+    return;
+  }
+
+  const cs = getComputedStyle(boardWrap);
+  const availW = boardWrap.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const availH = boardWrap.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+
+  const rs = getComputedStyle(document.documentElement);
+  const iw = parseFloat(rs.getPropertyValue("--img-w")) || 520;
+  const ih = parseFloat(rs.getPropertyValue("--img-h")) || 758;
+
+  const w = Math.floor(Math.min(availW, availH * iw / ih));
+
+  // 너무 좁아지면 억지로 우겨넣지 않고 스크롤을 허용한다
+  const fits = w >= 150;
+  board.style.width = Math.max(150, w) + "px";
+  document.body.classList.toggle("no-scroll", fits);
+
+  placeDiceOverlay();
+}
+
+// 보드의 제목 띠(격자 위쪽 여백) 한가운데에 주사위를 얹는다.
+// 그 띠에는 칸이 없어서 무엇도 가리지 않는다.
+function placeDiceOverlay() {
+  const r = board.getBoundingClientRect();
+  const bandPct = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--grid-t")) || 16;
+  const band = r.height * bandPct / 100;
+  const size = diceStage.offsetWidth || 62;
+
+  diceStage.style.left = Math.round(r.left + (r.width - size) / 2) + "px";
+  diceStage.style.top = Math.round(r.top + Math.max(2, (band - size) / 2)) + "px";
+}
+
 function relayoutBoard() {
+  fitBoard();
   sizeTokens();
   for (const p of PLAYERS) placeToken(p, p.pos, true);
 }
@@ -2511,6 +2608,12 @@ function init() {
     winnerEl.classList.remove("show");
     openSetup();
   });
+
+  // 그만하기 — 창만 닫고 마지막 판을 그대로 둔다. 다시 하려면 위의 「새 게임」.
+  document.getElementById("quitBtn").addEventListener("click", () => {
+    winnerEl.classList.remove("show");
+  });
+
   document.getElementById("newBtn").addEventListener("click", openSetup);
 
   document.getElementById("setupStart").addEventListener("click", () => {
