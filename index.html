@@ -1458,7 +1458,8 @@ td.down .arw { color: #1b7a22; }
         </p>
         <h2>기본</h2>
         <ul>
-          <li>두 말 모두 <b>1번 칸</b>에서 시작합니다.</li>
+          <li>두 말은 <b>보드 밖에서</b> 기다립니다. 처음 굴린 눈만큼 판에 올라섭니다 —
+              3이 나오면 3번 칸부터입니다.</li>
           <li><b>선은 무작위로</b> 정해집니다. 누가 먼저인지 시작할 때 알려 줍니다.</li>
           <li>판이 끝난 뒤 <b>계속하기</b>를 고르면 <b>진 쪽이 선</b>을 잡습니다.
               위쪽 <b>새 게임</b>으로 시작하면 선을 다시 뽑습니다.</li>
@@ -1496,8 +1497,8 @@ td.down .arw { color: #1b7a22; }
           <li><b>6이 나오면 한 번 더</b> — 6이 나온 사람이 이어서 한 번 더 굴립니다.
               다만 한 차례에 6이 <b>세 번 연속</b> 나오면 거기서 차례가 넘어갑니다.</li>
           <li><b>앞말 잡기</b> — 고속도로와 뱀까지 모두 처리한 <b>최종 칸</b>에 상대 말이
-              서 있으면 그 말을 <b>1번 칸으로</b> 돌려보냅니다. 다 온 말을 처음으로
-              보낼 수 있어 끝까지 마음을 놓을 수 없습니다.</li>
+              서 있으면 그 말을 <b>보드 밖으로</b> 밀어냅니다. 처음부터 다시 올라와야 하니
+              끝까지 마음을 놓을 수 없습니다.</li>
         </ul>
 
         <h2>화면</h2>
@@ -1556,7 +1557,7 @@ td.down .arw { color: #1b7a22; }
       </label>
 
       <label class="opt">
-        <span class="opt-name">앞말 잡기<em>같은 칸에 닿으면 상대를 1번으로</em></span>
+        <span class="opt-name">앞말 잡기<em>같은 칸에 닿으면 상대를 보드 밖으로</em></span>
         <input type="checkbox" data-opt="catchOpponent">
         <span class="sw"></span>
       </label>
@@ -1903,13 +1904,20 @@ function sizeTokens() {
 }
 
 function placeToken(p, n, instant) {
-  const { col, top } = cellToXY(n);
   const c = cellSize();
-  // 같은 칸에 겹칠 때를 대비해 대각으로 어긋나게 둔다 (사람은 왼쪽 아래, 컴퓨터는 오른쪽 위)
-  const dx = (p.id === "human" ? -0.17 : 0.17) * c.w;
-  const dy = (p.id === "human" ?  0.13 : -0.13) * c.h;
-  const x = col * c.w + c.w / 2 + dx;
-  const y = top * c.h + c.h / 2 + dy;
+  let x, y;
+
+  if (n === 0) {
+    // 출발 전 — 아직 어느 칸에도 올라가지 않았다. 격자 위 제목 띠 양끝에서 기다린다.
+    // (가운데는 휴대폰에서 주사위가 얹히는 자리라 비워 둔다)
+    x = (p.id === "human" ? 1.1 : 8.9) * c.w;
+    y = -c.h * 0.52;
+  } else {
+    const { col, top } = cellToXY(n);
+    // 같은 칸에 겹칠 때를 대비해 대각으로 어긋나게 둔다 (사람은 왼쪽 아래, 컴퓨터는 오른쪽 위)
+    x = col * c.w + c.w / 2 + (p.id === "human" ? -0.17 : 0.17) * c.w;
+    y = top * c.h + c.h / 2 + (p.id === "human" ? 0.13 : -0.13) * c.h;
+  }
 
   if (instant) p.wrap.style.transition = "none";
   p.wrap.style.transform = `translate(calc(${x}px - 50%), calc(${y}px - 50%))`;
@@ -2256,7 +2264,7 @@ function updatePanel() {
   for (let i = 0; i < PLAYERS.length; i++) {
     const p = PLAYERS[i];
     const card = pcards[p.id];
-    card.querySelector(".ppos").textContent = p.pos + "번 칸";
+    card.querySelector(".ppos").textContent = (p.pos === 0) ? "출발 전" : p.pos + "번 칸";
     const mine = (i === state.turn) && !state.over;
     card.classList.toggle("active", mine);
     card.querySelector(".pturn").textContent = state.over ? "종료" : (mine ? "내 차례" : "대기");
@@ -2273,11 +2281,12 @@ function showCard(o) {
   storyEl.querySelector(".kicker").textContent = o.kicker;
   storyEl.querySelector(".text").textContent = o.text;
 
-  // 칸 이동은 안내 페이지의 표와 같은 네모 칩으로 보여 준다
+  // 칸 이동은 안내 페이지의 표와 같은 네모 칩으로 보여 준다. 0 은 보드 밖이다.
+  const label = n => (n === 0) ? "출발" : n;
   storyEl.querySelector(".move").innerHTML = (o.from === undefined) ? "" :
-    `<span class="chip from">${o.from}</span>` +
+    `<span class="chip from">${label(o.from)}</span>` +
     `<span class="arw">&rarr;</span>` +
-    `<span class="chip to">${o.to}</span>`;
+    `<span class="chip to">${label(o.to)}</span>`;
 
   void storyEl.offsetWidth;
   storyEl.classList.add("show");
@@ -2359,7 +2368,7 @@ async function takeTurn() {
 
   // 앞말 잡기(옵션) — 뱀·고속도로까지 모두 끝난 최종 칸에서만 판정한다.
   const other = PLAYERS[1 - state.turn];
-  if (OPTIONS.catchOpponent && !r.won && other.pos === p.pos && p.pos !== 1) {
+  if (OPTIONS.catchOpponent && !r.won && other.pos === p.pos && p.pos > 0) {
     const caughtAt = other.pos;
     p.tok.classList.add("bump");
     other.tok.classList.add("bump");
@@ -2367,15 +2376,15 @@ async function takeTurn() {
       kind:   "catch",
       icon:   "💥",
       kicker: "잡혔다",
-      text:   `${other.name}의 말이 ${p.name}에게 잡혀 1번 칸으로 돌아갑니다`,
+      text:   `${other.name}의 말이 ${p.name}에게 잡혀 보드 밖으로 밀려납니다`,
       from:   caughtAt,
-      to:     1,
+      to:     0,
       hold:   2000
     });
     await sleep(560);
     p.tok.classList.remove("bump");
     other.tok.classList.remove("bump");
-    await knockTo(other, 1);
+    await knockTo(other, 0);
   }
 
   updatePanel();
@@ -2581,9 +2590,10 @@ function resetGame(announce) {
   bonusPending = false;
   busy = false;
 
+  // 말은 보드 밖에서 기다린다. 처음 굴린 눈만큼 판에 올라선다.
   for (const p of PLAYERS) {
-    p.pos = 1;
-    placeToken(p, 1, true);
+    p.pos = 0;
+    placeToken(p, 0, true);
   }
 
   winnerEl.classList.remove("show");
