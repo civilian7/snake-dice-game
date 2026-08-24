@@ -330,14 +330,12 @@ td.down .arw { color: #1b7a22; }
 
 /* ---------- 전체 배치 ---------- */
 
-/* 패널을 보드와 같은 높이로 늘여 둔다. 그래야 로그가 아무리 쌓여도
-   페이지가 보드보다 길어지지 않고 로그 안에서만 스크롤된다. */
 #app {
   max-width: 1100px;
   margin: 0 auto;
   display: flex;
   gap: 22px;
-  align-items: stretch;
+  align-items: flex-start;
   justify-content: center;
 }
 
@@ -761,49 +759,7 @@ td.down .arw { color: #1b7a22; }
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* ---------- 진행 로그 ---------- */
-
-/* 로그 카드가 남은 높이를 다 먹고, 넘치는 내용은 카드 안에서만 스크롤된다 */
-#logCard {
-  padding: 10px 12px;
-  flex: 1 1 0;
-  min-height: 96px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-#logCard h3 {
-  margin: 0 0 8px;
-  font-size: 12px;
-  color: #8d856f;
-  font-weight: 700;
-  letter-spacing: .04em;
-}
-
-#log {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 12.5px;
-  line-height: 1.45;
-
-  scrollbar-width: thin;                       /* Firefox */
-  scrollbar-color: #5c5344 transparent;
-}
-
-/* WebKit 계열 — 패널 색에 맞춘 얇은 막대 */
-#log::-webkit-scrollbar { width: 8px; }
-#log::-webkit-scrollbar-track { background: #1f1d19; border-radius: 8px; }
-#log::-webkit-scrollbar-thumb { background: #4a4438; border-radius: 8px; }
-#log::-webkit-scrollbar-thumb:hover { background: #6d6552; }
-
-/* 안내 페이지 본문도 같은 막대를 쓴다 */
-/* 안내 페이지는 종이 바탕이라 막대도 종이 색에 맞춘다 */
+/* 안내 페이지는 종이 바탕이라 스크롤 막대도 종이 색에 맞춘다 */
 .help-body {
   scrollbar-width: thin;
   scrollbar-color: #b59a3a #efe3b8;
@@ -813,12 +769,6 @@ td.down .arw { color: #1b7a22; }
 .help-body::-webkit-scrollbar-track { background: #efe3b8; }
 .help-body::-webkit-scrollbar-thumb { background: #b59a3a; border-radius: 8px; border: 2px solid #efe3b8; }
 .help-body::-webkit-scrollbar-thumb:hover { background: #8f7a24; }
-
-#log .row { padding-left: 8px; border-left: 3px solid #4a4438; color: #cdc6b2; }
-#log .lg-ico { margin-right: 5px; font-size: 12px; }
-#log .row.human { border-left-color: var(--human); }
-#log .row.cpu   { border-left-color: var(--cpu); }
-#log .row.sys   { border-left-color: #ffe25a; color: #ffe9a0; }
 
 /* ---------- 교훈 카드 ---------- */
 
@@ -1012,8 +962,6 @@ td.down .arw { color: #1b7a22; }
   .players .pcard .pname { font-size: 14px; }
   .players .pcard .pturn { font-size: 10px; padding: 2px 7px; }
 
-  #logCard { flex: none; }
-  #log { max-height: 130px; }
 }
 
 /* ---------- 휴대폰 세로 ---------- */
@@ -1073,8 +1021,6 @@ td.down .arw { color: #1b7a22; }
   .seg-row { padding: 6px 10px; }
   .seg-row .seg { min-height: 40px; }
 
-  #log { max-height: 104px; }
-
   /* 안내 페이지는 화면을 꽉 채우는 시트로 */
   #help { padding: 0; }
   .help-box {
@@ -1115,7 +1061,6 @@ td.down .arw { color: #1b7a22; }
   #board { width: calc((100svh - 90px) * var(--img-w) / var(--img-h)); min-width: 180px; }
 
   .players { flex-direction: column; }
-  #logCard { display: none; }         /* 로그는 자리가 없다 — 카드 안내로 대신한다 */
 }
 </style>
 </head>
@@ -1184,10 +1129,6 @@ td.down .arw { color: #1b7a22; }
       <button class="seg" data-snd="off">꺼짐</button>
     </div>
 
-    <div class="card" id="logCard">
-      <h3>진행</h3>
-      <div id="log"></div>
-    </div>
   </div>
 </div>
 
@@ -1769,6 +1710,14 @@ async function rollDice() {
 
   await sleep(900);
 
+  // 여기서 각도를 0~360 으로 되돌린다. 화면상 같은 자세라 눈에는 아무 변화가 없지만,
+  // 이렇게 하지 않으면 굴릴 때마다 1500도씩 쌓여 수만 도가 된다.
+  diceEl.style.transition = "none";
+  diceAngle.x = ((diceAngle.x % 360) + 360) % 360;
+  diceAngle.y = ((diceAngle.y % 360) + 360) % 360;
+  diceEl.style.transform = `rotateX(${diceAngle.x}deg) rotateY(${diceAngle.y}deg)`;
+  void diceEl.offsetWidth;          // 강제 리플로우 — 다음 굴림의 전이가 정상 시작되게
+
   diceStage.classList.remove("rolling");
   sfxLand();
   diceEl.classList.add("landed");
@@ -1897,7 +1846,6 @@ function setSound(on) {
    ========================================================================== */
 
 const rollBtn = document.getElementById("rollBtn");
-const logEl = document.getElementById("log");
 const pcards = {
   human: document.querySelector('.pcard[data-id="human"]'),
   cpu:   document.querySelector('.pcard[data-id="cpu"]')
@@ -1916,29 +1864,6 @@ function updatePanel() {
     card.classList.toggle("active", mine);
     card.querySelector(".pturn").textContent = state.over ? "종료" : (mine ? "내 차례" : "대기");
   }
-}
-
-// 좁은 로그에 이름을 쓰면 자리를 많이 먹는다. 말과 같은 아이콘으로 누구인지 보인다.
-function iconOf(id) {
-  const p = PLAYERS.find(x => x.id === id);
-  return p ? p.icon : "";
-}
-
-function log(msg, who) {
-  const row = document.createElement("div");
-  row.className = "row " + (who || "sys");
-
-  const icon = iconOf(who);
-  if (icon) {
-    const el = document.createElement("span");
-    el.className = "lg-ico";
-    el.textContent = icon;
-    row.appendChild(el);
-  }
-
-  row.appendChild(document.createTextNode(msg));
-  logEl.prepend(row);
-  while (logEl.children.length > 60) logEl.lastChild.remove();
 }
 
 const storyEl = document.getElementById("story");
@@ -2018,14 +1943,13 @@ async function takeTurn() {
 
   const p = PLAYERS[state.turn];
   const dice = await rollDice();
-  log(`주사위 ${dice}`, p.id);
 
   const r = resolveMove(p.pos, dice);
 
   if (r.bounced) {
+    // 100 을 찍고 넘어간 만큼 되돌아온다 — 두 번에 나눠 걸어야 눈에 보인다
     await hopTo(p, 100);
-    log("100을 넘어 그만큼 되돌아온다", p.id);
-    await sleep(160);
+    await sleep(220);
     await hopTo(p, r.landed);
   } else {
     await hopTo(p, r.landed);
@@ -2035,7 +1959,6 @@ async function takeTurn() {
     showStory(r.landed, r.jump, r.final);
     await sleep(760);
     await slideTo(p, r.final, r.jump);
-    log(`${r.landed} → ${r.final} · ${r.jump === "snake" ? "뱀에게 물렸다" : "고속도로를 탔다"}`, p.id);
     await sleep(160);
   }
 
@@ -2058,7 +1981,6 @@ async function takeTurn() {
     p.tok.classList.remove("bump");
     other.tok.classList.remove("bump");
     await knockTo(other, 1);
-    log(`${caughtAt}번에서 ${other.icon} 말을 잡아 1번으로 보냈다`, p.id);
   }
 
   updatePanel();
@@ -2066,7 +1988,6 @@ async function takeTurn() {
   if (r.won) {
     state.over = true;
     updatePanel();
-    log(`100번 칸 도착 — ${p.icon} ${p.name} 승리!`, "sys");
     await sleep(400);
     showWinner(p);
     busy = false;
@@ -2077,10 +1998,7 @@ async function takeTurn() {
   sixStreak = (dice === 6) ? sixStreak + 1 : 0;
   bonusPending = (dice === 6 && sixStreak < 3);
 
-  if (bonusPending) {
-    log(`6! 한 번 더 (${sixStreak}/3)`, p.id);
-  } else {
-    if (dice === 6) log("6이 세 번 연속 — 차례를 넘긴다", "sys");
+  if (!bonusPending) {
     sixStreak = 0;
     state.turn = 1 - state.turn;
   }
@@ -2200,10 +2118,8 @@ function resetGame() {
     placeToken(p, 1, true);
   }
 
-  logEl.innerHTML = "";
   winnerEl.classList.remove("show");
   storyEl.classList.remove("show");
-  log("주사위를 굴려 1번에서 출발합니다", "sys");
   nextStep();
 }
 
