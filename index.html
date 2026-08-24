@@ -121,6 +121,22 @@ button { touch-action: manipulation; }
 
 .btn-mast:hover { background: #3a352b; border-color: #8a7c62; }
 
+/* 아이콘만 있는 버튼 (효과음·GitHub) */
+.btn-mast.icon {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  padding: 0;
+  height: 34px;
+  font-size: 15px;
+  line-height: 1;
+  text-decoration: none;
+  color: #a49c86;
+}
+
+.btn-mast.icon:hover { color: #ffe25a; }
+.btn-mast.icon.off { opacity: .45; }
+
 /* ---------- 안내 (게임 개요 / 게임 방법) ---------- */
 
 /* 원본 보드의 종이 질감을 그대로 가져와, 놀이판 설명서처럼 보이게 한다 */
@@ -236,6 +252,12 @@ button { touch-action: manipulation; }
 .help-body b {
   font-weight: 800;
   background: linear-gradient(transparent 58%, #ffe14f 58%);
+}
+
+.help-body a {
+  color: #0a58ff;
+  font-weight: 700;
+  word-break: break-all;
 }
 
 .help-body .note {
@@ -943,6 +965,198 @@ td.down .arw { color: #1b7a22; }
   border-color: #ffe25a;
 }
 
+/* ---------- 새 게임 다이얼로그 ---------- */
+
+#setup {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: none;
+  place-items: center;
+  padding: 20px 16px;
+  background: rgba(8, 7, 6, .82);
+}
+
+#setup.show { display: grid; }
+
+.setup-box {
+  width: min(420px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: #fdf6d8;
+  border: 4px solid #2b2410;
+  border-radius: 18px;
+  box-shadow: 0 0 0 4px #f0b800, 0 30px 80px rgba(0,0,0,.75);
+  overflow: hidden;
+  animation: helpIn 320ms cubic-bezier(.2, 1.4, .4, 1);
+}
+
+.setup-head {
+  padding: 12px 18px;
+  background: linear-gradient(180deg, #ffe95e, #f3cf1f);
+  border-bottom: 4px solid #2b2410;
+}
+
+.setup-title {
+  font-size: 19px;
+  font-weight: 900;
+  color: #c62828;
+  text-shadow: 2px 2px 0 #fff;
+}
+
+.setup-body {
+  padding: 8px 20px 4px;
+  overflow-y: auto;
+  color: #3a3116;
+}
+
+.setup-note {
+  margin: 14px 0 4px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #6b5a1e;
+  background: #fff9e4;
+  border: 2px dashed #b59a3a;
+  border-radius: 10px;
+  word-break: keep-all;
+}
+
+.setup-foot {
+  display: flex;
+  gap: 10px;
+  padding: 14px 20px calc(16px + env(safe-area-inset-bottom));
+  border-top: 2px solid #e6d8a6;
+  background: #fff9e4;
+}
+
+.btn-start {
+  flex: 1;
+  padding: 13px 0;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 900;
+  color: #2b2410;
+  background: linear-gradient(180deg, #ffe86b, #f0b800);
+  border: 2px solid #2b2410;
+  border-radius: 11px;
+  box-shadow: 0 4px 0 #2b2410;
+  cursor: pointer;
+}
+
+.btn-start:hover  { filter: brightness(1.06); }
+.btn-start:active { transform: translateY(4px); box-shadow: none; }
+
+.btn-ghost2 {
+  padding: 13px 20px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: #6b5a1e;
+  background: #fdf6d8;
+  border: 2px solid #b59a3a;
+  border-radius: 11px;
+  cursor: pointer;
+}
+
+.btn-ghost2:hover { background: #fff; color: #2b2410; }
+
+/* 보드 선택 — 종이 위에 얹은 세그먼트 */
+.opt-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0 12px;
+}
+
+.opt-label { font-size: 13.5px; font-weight: 800; color: #2b2410; }
+
+.opt-seg { display: flex; gap: 8px; margin-left: auto; }
+
+.oseg {
+  padding: 9px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  color: #6b5a1e;
+  background: #fff9e4;
+  border: 2px solid #b59a3a;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.oseg:hover { color: #2b2410; }
+
+.oseg.on {
+  color: #fff6c9;
+  background: #c62828;
+  border-color: #2b2410;
+  box-shadow: 2px 2px 0 #2b2410;
+}
+
+/* ---------- 규칙 토글 ---------- */
+
+.opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  cursor: pointer;
+  border-top: 1px solid #e6d8a6;
+}
+
+.opt-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #2b2410;
+  word-break: keep-all;
+}
+
+.opt-name em {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: #8a7842;
+}
+
+.opt input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.sw {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 27px;
+  border-radius: 999px;
+  background: #e4d6a4;
+  border: 2px solid #2b2410;
+  position: relative;
+  transition: background .18s;
+}
+
+.sw::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #8a7842;
+  transition: transform .18s, background .18s;
+}
+
+.opt input:checked + .sw { background: #6cc16f; }
+.opt input:checked + .sw::after { transform: translateX(21px); background: #14501a; }
+.opt input:focus-visible + .sw { outline: 3px solid #c62828; outline-offset: 2px; }
+
 /* ---------- 좁은 화면 ---------- */
 
 /* ---------- 태블릿 · 좁은 창: 세로로 쌓는다 ---------- */
@@ -1070,12 +1284,21 @@ td.down .arw { color: #1b7a22; }
   <h1>뱀주사위놀이</h1>
 
   <div class="mast-btns">
-    <span class="seg-lbl">보드</span>
-    <button class="seg" data-bg="photo">원본</button>
-    <button class="seg" data-bg="retro">레트로</button>
-    <span class="divider"></span>
     <button class="btn-mast" id="newBtn">새 게임</button>
     <button class="btn-mast" id="helpBtn">게임 안내</button>
+    <button class="btn-mast icon" id="muteBtn" title="효과음" aria-label="효과음 켜기/끄기">🔊</button>
+    <a class="btn-mast icon" id="ghLink" href="https://github.com/civilian7"
+       target="_blank" rel="noopener noreferrer" title="만든 사람의 GitHub" aria-label="GitHub">
+      <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+          0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01
+          1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95
+          0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0
+          1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0
+          3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01
+          8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+    </a>
   </div>
 </div>
 
@@ -1121,12 +1344,6 @@ td.down .arw { color: #1b7a22; }
       <div id="againNote"></div>
       <button id="rollBtn">주사위 굴리기</button>
       <div class="hint">Space 키로도 굴릴 수 있습니다</div>
-    </div>
-
-    <div class="card seg-row">
-      <span class="seg-lbl">소리</span>
-      <button class="seg" data-snd="on">켜짐</button>
-      <button class="seg" data-snd="off">꺼짐</button>
     </div>
 
   </div>
@@ -1190,8 +1407,8 @@ td.down .arw { color: #1b7a22; }
         <h2>주사위</h2>
         <ul>
           <li><span class="kbd">주사위 굴리기</span> 버튼을 누르거나 <span class="kbd">Space</span> 키를 누릅니다.</li>
-          <li><b>6이 나오면 한 번 더</b> 굴립니다.</li>
-          <li>다만 한 차례에 <b>6이 세 번 연속</b> 나오면 거기서 차례가 넘어갑니다.</li>
+          <li>주사위를 직접 눌러도 굴러갑니다.</li>
+          <li>나온 눈만큼 앞으로 가고, 차례가 상대에게 넘어갑니다.</li>
         </ul>
 
         <h2>고속도로와 뱀</h2>
@@ -1209,20 +1426,36 @@ td.down .arw { color: #1b7a22; }
           뱀에게 물려 78번까지 떨어집니다.
         </p>
 
-        <h2>밀어내기</h2>
+        <h2>덧붙이는 규칙</h2>
         <p>
-          고속도로와 뱀까지 모두 처리한 <b>최종 칸</b>에 상대 말이 서 있으면,
-          그 말은 <b>1번 칸으로 되돌아갑니다</b>. 다 온 말을 처음으로 돌려보낼 수
-          있으니 끝까지 마음을 놓을 수 없습니다.
+          아래 둘은 원본 판에 근거가 없는 변형 규칙이라 <b>기본으로 꺼져</b> 있습니다.
+          <b>새 게임</b>을 누르면 나오는 창에서 켤 수 있고, 고른 값은 다음에 열 때도
+          그대로 남습니다.
         </p>
+        <ul>
+          <li><b>6이 나오면 한 번 더</b> — 6이 나온 사람이 이어서 한 번 더 굴립니다.
+              다만 한 차례에 6이 <b>세 번 연속</b> 나오면 거기서 차례가 넘어갑니다.</li>
+          <li><b>앞말 잡기</b> — 고속도로와 뱀까지 모두 처리한 <b>최종 칸</b>에 상대 말이
+              서 있으면 그 말을 <b>1번 칸으로</b> 돌려보냅니다. 다 온 말을 처음으로
+              보낼 수 있어 끝까지 마음을 놓을 수 없습니다.</li>
+        </ul>
 
         <h2>화면</h2>
         <ul>
           <li>파란 <b>🧑 말</b>이 사람, 빨간 <b>🤖 말</b>이 컴퓨터입니다.</li>
-          <li>상단에서 <b>원본 / 레트로</b> 보드를 바꿀 수 있습니다.</li>
-          <li>오른쪽 <b>소리</b>에서 효과음을 끌 수 있습니다.</li>
-          <li><b>새 게임</b>을 누르면 처음부터 다시 시작합니다.</li>
+          <li><b>새 게임</b>을 누르면 보드 종류와 규칙을 고르는 창이 열립니다.</li>
+          <li>보드는 <b>원본 그림</b>과 코드로 다시 그린 <b>레트로</b> 중에 고릅니다.</li>
+          <li>상단 <b>🔊</b> 버튼으로 판 도중에도 효과음을 끌 수 있습니다.</li>
         </ul>
+
+        <h2>만든 곳</h2>
+        <p>
+          소스와 설계 문서는
+          <a href="https://github.com/civilian7/snake-dice-game" target="_blank" rel="noopener noreferrer">github.com/civilian7/snake-dice-game</a>
+          에 있습니다. 만든 사람의 다른 작업은
+          <a href="https://github.com/civilian7" target="_blank" rel="noopener noreferrer">github.com/civilian7</a>
+          에서 볼 수 있습니다.
+        </p>
 
         <h2>고속도로 13곳</h2>
         <div class="tbl-wrap"><table class="cells" id="tblUp"></table></div>
@@ -1237,6 +1470,51 @@ td.down .arw { color: #1b7a22; }
           그림이 담은 내용만 적었습니다.
         </p>
       </section>
+    </div>
+  </div>
+</div>
+
+<div id="setup">
+  <div class="setup-box" role="dialog" aria-modal="true" aria-label="새 게임">
+    <div class="setup-head">
+      <span class="setup-title">🎲 새 게임</span>
+    </div>
+
+    <div class="setup-body">
+      <div class="opt-group">
+        <span class="opt-label">보드</span>
+        <div class="opt-seg">
+          <button type="button" class="oseg" data-board="photo">원본 그림</button>
+          <button type="button" class="oseg" data-board="retro">레트로</button>
+        </div>
+      </div>
+
+      <label class="opt">
+        <span class="opt-name">6이 나오면 한 번 더<em>6이 나온 사람이 이어서 굴립니다</em></span>
+        <input type="checkbox" data-opt="sixAgain">
+        <span class="sw"></span>
+      </label>
+
+      <label class="opt">
+        <span class="opt-name">앞말 잡기<em>같은 칸에 닿으면 상대를 1번으로</em></span>
+        <input type="checkbox" data-opt="catchOpponent">
+        <span class="sw"></span>
+      </label>
+
+      <label class="opt">
+        <span class="opt-name">효과음<em>주사위·이동·뱀·고속도로 소리</em></span>
+        <input type="checkbox" data-opt="sound">
+        <span class="sw"></span>
+      </label>
+
+      <p class="setup-note">
+        「한 번 더」와 「앞말 잡기」는 원본 판에 없는 변형 규칙입니다.
+      </p>
+    </div>
+
+    <div class="setup-foot">
+      <button type="button" class="btn-ghost2" id="setupCancel">취소</button>
+      <button type="button" class="btn-start" id="setupStart">게임 시작</button>
     </div>
   </div>
 </div>
@@ -1731,8 +2009,18 @@ async function rollDice() {
    7. 효과음 — 음원 파일 없이 Web Audio 로 그때그때 합성한다
    ========================================================================== */
 
-const SND_KEY = "snakegame.snd";
-let soundOn = true;
+/* 규칙 변형과 효과음. 6 재굴림과 앞말 잡기는 원본 판에 근거가 없어 기본은 꺼 둔다.
+   바꾼 값은 다음 차례부터 적용된다 — 이미 얻은 「한 번 더」는 그대로 살려 준다. */
+const OPT_KEY = "snakegame.opts";
+
+const OPTIONS = {
+  board: "photo",           // 원본 그림 / 레트로
+  sixAgain: false,          // 6이 나오면 한 번 더
+  catchOpponent: false,     // 같은 칸에 도착하면 상대를 1번으로
+  sound: true
+};
+
+let soundOn = OPTIONS.sound;
 let actx = null;
 
 // 오디오 컨텍스트는 사용자가 처음 누를 때 깨어난다(브라우저 자동재생 정책).
@@ -1833,12 +2121,52 @@ function sfxWin() {
   tone(1046.5, 1046.5, 0.7, "sine", 0.12, 0.52);
 }
 
-function setSound(on) {
-  soundOn = !!on;
-  for (const b of document.querySelectorAll(".seg[data-snd]")) {
-    b.classList.toggle("on", (b.dataset.snd === "on") === soundOn);
+function saveOptions() {
+  try { localStorage.setItem(OPT_KEY, JSON.stringify(OPTIONS)); } catch (e) { /* 무시 */ }
+}
+
+function loadOptions() {
+  try {
+    const raw = localStorage.getItem(OPT_KEY);
+    if (!raw) return;
+
+    const saved = JSON.parse(raw);
+    for (const k in OPTIONS) {
+      if (typeof OPTIONS[k] === "boolean" && typeof saved[k] === "boolean") OPTIONS[k] = saved[k];
+    }
+    if (saved.board === "photo" || saved.board === "retro") OPTIONS.board = saved.board;
+  } catch (e) { /* 저장값이 깨졌으면 기본값으로 간다 */ }
+}
+
+// 상태 → 화면. 스위치와 세그먼트를 맞추고 소리 플래그를 따라가게 한다.
+function syncOptions() {
+  for (const el of document.querySelectorAll(".opt input[data-opt]")) {
+    el.checked = !!OPTIONS[el.dataset.opt];
   }
-  try { localStorage.setItem(SND_KEY, soundOn ? "on" : "off"); } catch (e) { /* 무시 */ }
+  for (const b of document.querySelectorAll(".oseg[data-board]")) {
+    b.classList.toggle("on", b.dataset.board === OPTIONS.board);
+  }
+
+  soundOn = OPTIONS.sound;
+
+  const mute = document.getElementById("muteBtn");
+  if (mute) {
+    mute.textContent = soundOn ? "🔊" : "🔇";
+    mute.classList.toggle("off", !soundOn);
+  }
+}
+
+// 규칙은 차례를 마무리할 때 읽으므로, 바꾼 값은 다음 차례부터 적용된다.
+// 이미 얻은 「한 번 더」를 도중에 빼앗지 않아 진행이 꼬이지 않는다.
+function setOption(name, on) {
+  OPTIONS[name] = !!on;
+  saveOptions();
+  syncOptions();
+}
+
+// 예전 코드·검증 스크립트가 쓰던 이름을 그대로 남겨 둔다
+function setSound(on) {
+  setOption("sound", on);
 }
 
 /* ==========================================================================
@@ -1962,9 +2290,9 @@ async function takeTurn() {
     await sleep(160);
   }
 
-  // 밀어내기 — 뱀·고속도로까지 모두 끝난 최종 칸에서만 판정한다.
+  // 앞말 잡기(옵션) — 뱀·고속도로까지 모두 끝난 최종 칸에서만 판정한다.
   const other = PLAYERS[1 - state.turn];
-  if (!r.won && other.pos === p.pos && p.pos !== 1) {
+  if (OPTIONS.catchOpponent && !r.won && other.pos === p.pos && p.pos !== 1) {
     const caughtAt = other.pos;
     p.tok.classList.add("bump");
     other.tok.classList.add("bump");
@@ -1994,9 +2322,9 @@ async function takeTurn() {
     return;
   }
 
-  // 6 은 한 번 더. 단 한 턴에 3연속이면 거기서 끝낸다.
-  sixStreak = (dice === 6) ? sixStreak + 1 : 0;
-  bonusPending = (dice === 6 && sixStreak < 3);
+  // 6 은 한 번 더(옵션). 단 한 턴에 3연속이면 거기서 끝낸다.
+  sixStreak = (OPTIONS.sixAgain && dice === 6) ? sixStreak + 1 : 0;
+  bonusPending = (OPTIONS.sixAgain && dice === 6 && sixStreak < 3);
 
   if (!bonusPending) {
     sixStreak = 0;
@@ -2024,20 +2352,16 @@ function nextStep() {
    10. 보드 모드 (원본 그림 / 레트로)
    ========================================================================== */
 
-const BG_KEY = "snakegame.bg";
-
 function relayoutBoard() {
   sizeTokens();
   for (const p of PLAYERS) placeToken(p, p.pos, true);
 }
 
 function setBoardMode(mode) {
-  board.dataset.bg = (mode === "retro") ? "retro" : "photo";
-  // 소리 토글도 같은 .seg 클래스를 쓰므로 반드시 [data-bg] 로 좁힌다
-  for (const b of document.querySelectorAll(".seg[data-bg]")) {
-    b.classList.toggle("on", b.dataset.bg === board.dataset.bg);
-  }
-  try { localStorage.setItem(BG_KEY, board.dataset.bg); } catch (e) { /* 사생활 보호 모드 등 — 무시 */ }
+  OPTIONS.board = (mode === "retro") ? "retro" : "photo";
+  board.dataset.bg = OPTIONS.board;
+  saveOptions();
+  syncOptions();
   requestAnimationFrame(relayoutBoard);
 }
 
@@ -2103,6 +2427,24 @@ function closeHelp() {
 }
 
 /* ==========================================================================
+   11-2. 새 게임 다이얼로그 — 판을 시작하기 전에 보드와 규칙을 고른다
+   ========================================================================== */
+
+const setupEl = document.getElementById("setup");
+
+function openSetup() {
+  syncOptions();                       // 지금 값으로 스위치를 맞춰 놓고 연다
+  setupEl.classList.add("show");
+  document.body.style.overflow = "hidden";
+  document.getElementById("setupStart").focus();
+}
+
+function closeSetup() {
+  setupEl.classList.remove("show");
+  document.body.style.overflow = "";
+}
+
+/* ==========================================================================
    12. 시작 · 초기화
    ========================================================================== */
 
@@ -2130,28 +2472,24 @@ function init() {
   buildDice();
   buildHelpTables();
 
-  let savedBg = null;
-  let savedSnd = null;
-  try {
-    savedBg = localStorage.getItem(BG_KEY);
-    savedSnd = localStorage.getItem(SND_KEY);
-  } catch (e) { /* 무시 */ }
-
-  setBoardMode(savedBg || "photo");         // 기본은 원본 그림
-  setSound(savedSnd !== "off");             // 기본은 소리 켬
+  loadOptions();
+  setBoardMode(OPTIONS.board);
   measureBoardImage();
 
   sizeTokens();
   resetGame();
+  openSetup();                    // 판을 시작하기 전에 보드와 규칙부터 고른다
 
-  for (const b of document.querySelectorAll(".seg[data-bg]")) {
-    b.addEventListener("click", () => setBoardMode(b.dataset.bg));
+  // 다이얼로그 안의 보드 선택
+  for (const b of document.querySelectorAll(".oseg[data-board]")) {
+    b.addEventListener("click", () => setBoardMode(b.dataset.board));
   }
 
-  for (const b of document.querySelectorAll(".seg[data-snd]")) {
-    b.addEventListener("click", () => {
-      setSound(b.dataset.snd === "on");
-      if (soundOn) sfxLand();               // 켜면 바로 들려 준다
+  // 다이얼로그 안의 규칙·효과음 스위치
+  for (const el of document.querySelectorAll(".opt input[data-opt]")) {
+    el.addEventListener("change", () => {
+      setOption(el.dataset.opt, el.checked);
+      if (el.dataset.opt === "sound" && soundOn) sfxLand();   // 켜면 바로 들려 준다
     });
   }
 
@@ -2168,8 +2506,27 @@ function init() {
     ? "주사위를 눌러도 굴릴 수 있습니다"
     : "Space 키로도 굴릴 수 있습니다";
 
-  document.getElementById("againBtn").addEventListener("click", resetGame);
-  document.getElementById("newBtn").addEventListener("click", resetGame);
+  // 새 게임 · 다시 하기는 모두 다이얼로그를 거친다
+  document.getElementById("againBtn").addEventListener("click", () => {
+    winnerEl.classList.remove("show");
+    openSetup();
+  });
+  document.getElementById("newBtn").addEventListener("click", openSetup);
+
+  document.getElementById("setupStart").addEventListener("click", () => {
+    closeSetup();
+    resetGame();
+  });
+  document.getElementById("setupCancel").addEventListener("click", closeSetup);
+  setupEl.addEventListener("click", e => {
+    if (e.target === setupEl) closeSetup();   // 바깥을 누르면 닫힌다
+  });
+
+  // 상단 효과음 버튼 — 판 도중에도 바로 끌 수 있어야 한다
+  document.getElementById("muteBtn").addEventListener("click", () => {
+    setOption("sound", !OPTIONS.sound);
+    if (soundOn) sfxLand();
+  });
 
   document.getElementById("helpBtn").addEventListener("click", openHelp);
   document.getElementById("helpClose").addEventListener("click", closeHelp);
@@ -2178,13 +2535,21 @@ function init() {
   });
 
   window.addEventListener("keydown", e => {
-    if (e.key === "Escape" && helpEl.classList.contains("show")) {
-      closeHelp();
+    if (e.key === "Escape") {
+      if (helpEl.classList.contains("show")) { closeHelp(); return; }
+      if (setupEl.classList.contains("show")) { closeSetup(); return; }
+    }
+
+    if (e.key === "Enter" && setupEl.classList.contains("show")) {
+      e.preventDefault();
+      closeSetup();
+      resetGame();
       return;
     }
 
-    // 안내가 열려 있을 때는 Space 로 주사위가 굴러가지 않게 한다
-    if (e.code === "Space" && !rollBtn.disabled && !helpEl.classList.contains("show")) {
+    // 어떤 창이든 열려 있으면 Space 로 주사위가 굴러가지 않게 한다
+    const blocked = helpEl.classList.contains("show") || setupEl.classList.contains("show");
+    if (e.code === "Space" && !rollBtn.disabled && !blocked) {
       e.preventDefault();
       takeTurn();
     }
