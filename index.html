@@ -2311,29 +2311,30 @@ function nextAngle(cur, target, spins) {
   return base + diff;
 }
 
+const mod360 = v => ((v % 360) + 360) % 360;
+const rotStr = a => `rotateX(${a.x}deg) rotateY(${a.y}deg)`;
+
+const DICE_SPIN_MS = 900;                      // .dice-lift 의 lift 키프레임과 같은 길이
+
 async function rollDice() {
   const forced = window.__forceDice;
   const value = (forced >= 1 && forced <= 6) ? forced : 1 + Math.floor(Math.random() * 6);
 
-  // 결과는 굴리기 시작 시점에 이미 확정된다. 애니메이션은 그 값으로 착지할 뿐이다.
-  const rot = FACE_ROT[value];
-  diceAngle.x = nextAngle(diceAngle.x, rot[0], 3 + Math.floor(Math.random() * 2));
-  diceAngle.y = nextAngle(diceAngle.y, rot[1], 4 + Math.floor(Math.random() * 2));
+  // ★전이(transition)를 쓰지 않는다.
+  // 전이는 「지금 어느 자세에 있는가」에 기대므로, 아직 구르는 중에 자세를 건드리면
+  // 그 순간 튄다 — 예전에 6이 나오면 잠깐 다른 면이 보인 것이 이것이었다.
+  // 대신 최종 자세를 「먼저」 인라인으로 확정해 두고, 거기까지 가는 길만 애니메이션한다.
+  // 애니메이션이 끝나면 이미 확정해 둔 값이 그대로 남으므로 이어붙일 자리가 없다.
+  const from = { x: mod360(diceAngle.x), y: mod360(diceAngle.y) };
+  const rot = FACE_ROT[value];                 // 결과는 굴리기 시작 시점에 이미 확정된다
+  diceAngle.x = nextAngle(from.x, rot[0], 3 + Math.floor(Math.random() * 2));
+  diceAngle.y = nextAngle(from.y, rot[1], 4 + Math.floor(Math.random() * 2));
 
   diceStage.classList.add("rolling");
-  diceEl.style.transition = "transform 900ms cubic-bezier(.22,.85,.25,1)";
-  diceEl.style.transform = `rotateX(${diceAngle.x}deg) rotateY(${diceAngle.y}deg)`;
+  diceEl.style.transform = rotStr(diceAngle);
   sfxRoll();
 
-  await sleep(900);
-
-  // 여기서 각도를 0~360 으로 되돌린다. 화면상 같은 자세라 눈에는 아무 변화가 없지만,
-  // 이렇게 하지 않으면 굴릴 때마다 1500도씩 쌓여 수만 도가 된다.
-  diceEl.style.transition = "none";
-  diceAngle.x = ((diceAngle.x % 360) + 360) % 360;
-  diceAngle.y = ((diceAngle.y % 360) + 360) % 360;
-  diceEl.style.transform = `rotateX(${diceAngle.x}deg) rotateY(${diceAngle.y}deg)`;
-  void diceEl.offsetWidth;          // 강제 리플로우 — 다음 굴림의 전이가 정상 시작되게
+  await spinDice(rotStr(from), rotStr(diceAngle));
 
   diceStage.classList.remove("rolling");
   sfxLand();
@@ -2342,6 +2343,28 @@ async function rollDice() {
   diceEl.classList.remove("landed");
 
   return value;
+}
+
+// 두 자세 사이를 굴린다. 끝나면 인라인 transform(= 도착 자세)이 그대로 드러난다.
+// 애니메이션을 쓸 수 없는 환경이면 그냥 도착 자세로 두고 시간만 흘려보낸다.
+function spinDice(from, to) {
+  if (typeof diceEl.animate !== "function") {
+    return sleep(DICE_SPIN_MS);
+  }
+
+  const anim = diceEl.animate(
+    [{ transform: from }, { transform: to }],
+    { duration: DICE_SPIN_MS, easing: "cubic-bezier(.22,.85,.25,1)" });
+
+  // 애니메이션 시계는 프레임을 따라 흐른다 — 배경 탭처럼 프레임이 드문 곳에서는
+  // finished 가 한참 늦게 온다. 게임이 거기 매달리지 않도록 여유를 두고 끊는다.
+  // 끊어도 마지막 키프레임(= 이미 확정해 둔 도착 자세)으로 맞춰지므로 엉뚱한 면이 보일 일은 없다.
+  const cap = sleep(DICE_SPIN_MS + 600).then(() => {
+    try { anim.finish(); } catch (e) { /* 이미 끝났으면 아무 일도 아니다 */ }
+  });
+
+  // finished 는 애니메이션이 취소되면 거부된다. 게임 진행이 거기서 멈추면 안 된다.
+  return Promise.race([anim.finished, cap]).catch(() => {});
 }
 
 /* ==========================================================================
