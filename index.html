@@ -834,6 +834,7 @@ td.down .arw { color: #1b7a22; }
 #story.up    .inner { --accent: #1f6bff; }
 #story.down  .inner { --accent: #2c9c34; }
 #story.catch .inner { --accent: #e2382d; }
+#story.start .inner { --accent: #c9930b; }
 
 /* 카드 위로 반쯤 걸쳐 나오는 아이콘 배지 */
 #story .s-icon {
@@ -1458,7 +1459,8 @@ td.down .arw { color: #1b7a22; }
         <h2>기본</h2>
         <ul>
           <li>두 말 모두 <b>1번 칸</b>에서 시작합니다.</li>
-          <li><b>사람이 먼저</b> 굴리고, 그다음 컴퓨터가 자동으로 굴립니다.</li>
+          <li><b>선은 판마다 무작위로</b> 정해집니다. 누가 먼저인지 시작할 때 알려 줍니다.</li>
+          <li>번갈아 굴립니다. 컴퓨터 차례는 자동으로 진행됩니다.</li>
           <li>나온 눈만큼 앞으로 갑니다. <b>100번 칸</b>에 닿으면 이깁니다.</li>
         </ul>
 
@@ -2324,8 +2326,13 @@ function showWinner(p) {
    9. 턴 상태머신
    ========================================================================== */
 
+// 설정 창이 열려 있는 동안은 판이 멈춘다. 그러지 않으면 창 뒤에서 컴퓨터가 혼자 굴린다.
+function gamePaused() {
+  return setupEl.classList.contains("show");
+}
+
 async function takeTurn() {
-  if (busy || state.over) return;
+  if (busy || state.over || gamePaused()) return;
   busy = true;
   againNote.classList.remove("show");     // 굴리기 시작하면 알림은 걷는다
   setRollEnabled(false);
@@ -2389,14 +2396,19 @@ async function takeTurn() {
   nextStep();
 }
 
-function nextStep() {
+function nextStep(cpuDelay) {
   updatePanel();
   updateBonusNote();
   if (state.over) return;
 
+  if (gamePaused()) {
+    setRollEnabled(false);
+    return;                                  // 창을 닫을 때 closeSetup 이 다시 부른다
+  }
+
   if (PLAYERS[state.turn].id === "cpu") {
     setRollEnabled(false);
-    setTimeout(takeTurn, 800);          // 컴퓨터는 뜸을 들이고 자동으로 굴린다
+    setTimeout(takeTurn, cpuDelay || 800);   // 컴퓨터는 뜸을 들이고 자동으로 굴린다
   } else {
     setRollEnabled(true);
   }
@@ -2532,21 +2544,27 @@ const setupEl = document.getElementById("setup");
 function openSetup() {
   syncOptions();                       // 지금 값으로 스위치를 맞춰 놓고 연다
   setupEl.classList.add("show");
+  setRollEnabled(false);               // 창이 열린 동안 판은 멈춘다
   document.body.style.overflow = "hidden";
   document.getElementById("setupStart").focus();
 }
 
-function closeSetup() {
+// 취소로 닫으면 멈춰 있던 판을 그대로 이어 간다.
+// 「게임 시작」은 뒤이어 resetGame() 이 nextStep() 을 부르므로 여기서 겹치지 않는다.
+function closeSetup(resume) {
   setupEl.classList.remove("show");
   document.body.style.overflow = "";
+  if (resume !== false) nextStep();
 }
 
 /* ==========================================================================
    12. 시작 · 초기화
    ========================================================================== */
 
-function resetGame() {
-  state.turn = 0;
+// announce 를 false 로 부르면 선을 알리는 카드를 띄우지 않는다(첫 진입에서 설정 창 뒤에
+// 카드가 깜빡이지 않게).
+function resetGame(announce) {
+  state.turn = (Math.random() < 0.5) ? 0 : 1;   // 선은 판마다 새로 뽑는다
   state.over = false;
   sixStreak = 0;
   bonusPending = false;
@@ -2559,7 +2577,23 @@ function resetGame() {
 
   winnerEl.classList.remove("show");
   storyEl.classList.remove("show");
-  nextStep();
+
+  if (announce === false) {
+    nextStep();
+    return;
+  }
+
+  const first = PLAYERS[state.turn];
+  showCard({
+    kind:   "start",
+    icon:   first.icon,
+    kicker: "선 뽑기",
+    text:   `${first.name}부터 시작합니다`,
+    hold:   1700
+  });
+
+  // 컴퓨터가 선이면 카드를 읽을 틈을 주고 굴린다
+  nextStep(1900);
 }
 
 function init() {
@@ -2574,7 +2608,7 @@ function init() {
   measureBoardImage();
 
   sizeTokens();
-  resetGame();
+  resetGame(false);               // 설정 창 뒤에서 선 카드가 깜빡이지 않게 조용히
   openSetup();                    // 판을 시작하기 전에 보드와 규칙부터 고른다
 
   // 다이얼로그 안의 보드 선택
@@ -2617,7 +2651,7 @@ function init() {
   document.getElementById("newBtn").addEventListener("click", openSetup);
 
   document.getElementById("setupStart").addEventListener("click", () => {
-    closeSetup();
+    closeSetup(false);              // 이어 가지 않는다 — 바로 새 판을 연다
     resetGame();
   });
   document.getElementById("setupCancel").addEventListener("click", closeSetup);
@@ -2645,7 +2679,7 @@ function init() {
 
     if (e.key === "Enter" && setupEl.classList.contains("show")) {
       e.preventDefault();
-      closeSetup();
+      closeSetup(false);
       resetGame();
       return;
     }
