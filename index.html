@@ -754,7 +754,11 @@ td.down .arw { color: #1b7a22; }
   cursor: pointer;            /* 주사위를 눌러도 굴러간다 */
 }
 
-.dice.landed { animation: pop 220ms ease-out; }
+/* ★착지 섬광은 <b>무대</b>에 건다 — 큐브(.dice)에 걸면 안 된다.
+   filter 가 걸린 요소는 transform-style: preserve-3d 가 강제로 flat 이 되어
+   큐브가 납작해지고 회전이 없는 1번 면만 남는다. 6이 나올 때 잠깐 1로 보이던 것이 이것이었다.
+   .dice-stage 는 perspective 만 가진 바깥 요소라, 여기 걸면 3D 로 다 그린 결과에 효과가 얹힌다. */
+.dice-stage.landed { animation: pop 220ms ease-out; }
 
 @keyframes pop {
   0%   { filter: brightness(1); }
@@ -2338,9 +2342,9 @@ async function rollDice() {
 
   diceStage.classList.remove("rolling");
   sfxLand();
-  diceEl.classList.add("landed");
+  diceStage.classList.add("landed");            // 큐브가 아니라 무대에 — 위 CSS 주석 참조
   await sleep(220);
-  diceEl.classList.remove("landed");
+  diceStage.classList.remove("landed");
 
   return value;
 }
