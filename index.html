@@ -318,11 +318,11 @@ table.cells tbody tr:nth-child(even) td { background: #fdf6d8; }
 table.cells td.story { white-space: normal; color: #6b5a1e; min-width: 9.5em; }
 table.cells td.move  { width: 1%; }
 
-/* 표 안의 칸 그림 */
+/* 표 안의 칸 그림 — 앞은 「한 일」, 뒤는 「그래서 된 일」 */
 .art {
   display: inline-block;
   width: 22px;
-  margin-right: 6px;
+  margin: 0 5px;
   font-size: 15px;
   text-align: center;
   vertical-align: middle;
@@ -483,7 +483,8 @@ td.down .arw { color: #1b7a22; }
   overflow: hidden;
 }
 
-.cell.odd { background: var(--cell-b); }
+/* 짝수 칸에만 그림이 있고, 홀수 칸은 비워 원본의 격자무늬를 낸다 */
+.cell.has-art { background: var(--cell-b); }
 
 /* 도착 칸은 옅게 물들여 어디로 가는지 미리 보이게 한다 */
 .cell.dest-up   { background: #d9f0b8; }
@@ -1713,20 +1714,31 @@ const STORIES_MODERN = {
   98: "난간에 올라갔다가 떨어졌다"
 };
 
-// 요즘판의 칸 그림. 1번 칸부터 100번 칸까지 차례대로.
-// 특수 칸은 그 칸의 이야기를, 도착 칸은 그 결과를 나타낸다. 나머지는 하루하루의 장면.
-const CELL_ART = [
-  "🐣", "🥶", "🎒", "🧓", "✏️", "😞", "📖", "🏋️", "⚽", "😣",
-  "🚲", "🏆", "🎨", "🚨", "🎵", "👏", "🧹", "🌳", "🥛", "📞",
-  "🍎", "⛸️", "🌱", "🚑", "☀️", "🩹", "🛏️", "📱", "🧼", "🖍️",
-  "👕", "📚", "🍚", "💰", "🚿", "🩺", "📝", "🏞️", "🧮", "🥕",
-  "🗺️", "😱", "🔭", "🤕", "🧲", "🏦", "🚌", "♻️", "🚦", "🏥",
-  "🏫", "💊", "🏠", "🌟", "🤝", "🎓", "💌", "🐕", "🎁", "🥗",
-  "🕰️", "😰", "📅", "🚒", "🧭", "🚔", "⛰️", "🤢", "🌸", "🛟",
-  "🍁", "💥", "❄️", "🏅", "🎂", "🔬", "🧑‍🍳", "🩼", "🧑‍🌾", "🏃",
-  "🧑‍🏫", "🌊", "🧑‍🔧", "🚄", "🧑‍🎨", "📜", "🧑‍💻", "🏵️", "🌠", "🩸",
-  "🗻", "❤️", "🌅", "🔥", "🎆", "🪵", "🥂", "🪜", "🚩", "🎉"
-];
+// 요즘판의 칸 그림.
+//
+// ★핵심은 인과다. 시작 칸에는 「한 일」, 도착 칸에는 「그래서 된 일」을 그린다.
+// 그림만 좇아도 이야기가 읽혀야 한다:
+//   🧓 4 → 16 👏   자리를 양보했다 → 칭찬받았다
+//   💼 34 → 46 💰  성실히 일했다 → 목돈을 모았다
+//   👊 44 → 26 💸  친구를 때렸다 → 합의금을 물었다
+//   🍗 68 → 52 🤢  욕심껏 먹었다 → 배탈이 났다
+//
+// ★원본 판의 성질 하나: 고속도로·뱀의 시작 칸 25개와 도착 칸 25개가 **모두 짝수**이고,
+// 그 합집합이 2~100 의 짝수 50개 전부다. 즉 **홀수 칸은 하나도 인과에 쓰이지 않는다.**
+// 그래서 그림은 짝수 칸에만 두고 홀수 칸은 비워 둔다 — 원본의 격자무늬가 살아나고
+// 뜻 없는 그림이 판을 어지럽히지 않는다.
+const CELL_ART = {
+  2:  "🥶", 4:  "🧓", 6:  "📉", 8:  "🏋️", 10: "😠",
+  12: "🏆", 14: "🚔", 16: "👏", 18: "🌱", 20: "📞",
+  22: "⛸️", 24: "🫀", 26: "💸", 28: "📱", 30: "🖍️",
+  32: "📚", 34: "💼", 36: "🩺", 38: "🌳", 40: "🪴",
+  42: "🩹", 44: "👊", 46: "💰", 48: "♻️", 50: "🏥",
+  52: "🤢", 54: "🌍", 56: "🎓", 58: "🐕", 60: "🥕",
+  62: "🚄", 64: "🚒", 66: "👛", 68: "🍗", 70: "🛟",
+  72: "🧨", 74: "🏅", 76: "🔬", 78: "🩼", 80: "🏃",
+  82: "🌊", 84: "🤳", 86: "💡", 88: "🙏", 90: "🩸",
+  92: "❤️", 94: "🔥", 96: "🪓", 98: "🪜", 100: "🥇"
+};
 
 // 지금 보드에 맞는 이야기. 보드를 바꾸면 칸에 붙은 이야기도 함께 바뀐다.
 function stories() {
@@ -1802,7 +1814,10 @@ function buildGrid() {
     const { col, top } = cellToXY(n);
     const el = document.createElement("div");
 
-    el.className = "cell" + (((col + top) % 2) ? " odd" : "");
+    // 짝수 칸에만 그림이 있다(인과에 쓰이는 칸이 모두 짝수다). 홀수 칸은 비워 격자무늬를 만든다.
+    // 클래스 이름은 표의 이모지 칩(.art)과 겹치지 않게 has-art 로 둔다.
+    // 한때 .art 로 두었더니 표에 준 width:22px 가 칸에도 걸려 칸 폭이 반으로 줄었다.
+    el.className = "cell" + ((n % 2) ? " plain" : " has-art");
     if (destUp.has(n))   el.classList.add("dest-up");
     if (destDown.has(n)) el.classList.add("dest-down");
 
@@ -1815,8 +1830,8 @@ function buildGrid() {
     else if (SNAKES[n] !== undefined) badge = '<span class="badge">&#128013;</span>';
 
     // 그림은 번호·표식 아래, 뱀·고속도로 아래에 깔린다 (원본 판도 그림 위로 뱀이 지난다)
-    el.innerHTML = '<span class="pic">' + CELL_ART[n - 1] + "</span>" +
-                   '<span class="num">' + n + "</span>" + badge;
+    const art = CELL_ART[n] ? '<span class="pic">' + CELL_ART[n] + "</span>" : "";
+    el.innerHTML = art + '<span class="num">' + n + "</span>" + badge;
     grid.appendChild(el);
     cellEls[n] = el;
   }
@@ -2621,10 +2636,11 @@ function buildHelpTables() {
   const rows = (map, cls) =>
     Object.keys(map).map(Number).sort((a, b) => a - b).map(from =>
       `<tr><td class="move ${cls}">` +
-      `<span class="art">${CELL_ART[from - 1]}</span>` +
+      `<span class="art">${CELL_ART[from] || ""}</span>` +
       `<span class="chip from">${from}</span>` +
       `<span class="arw">&rarr;</span>` +
-      `<span class="chip to">${map[from]}</span></td>` +
+      `<span class="chip to">${map[from]}</span>` +
+      `<span class="art">${CELL_ART[map[from]] || ""}</span></td>` +
       `<td class="story">${STORIES_CLASSIC[from] || ""}</td>` +
       `<td class="story">${STORIES_MODERN[from] || ""}</td></tr>`).join("");
 
