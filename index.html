@@ -315,8 +315,18 @@ table.cells td { border-bottom: 1px solid #e6d8a6; }
 table.cells tr:last-child td { border-bottom: none; }
 table.cells tbody tr:nth-child(even) td { background: #fdf6d8; }
 
-table.cells td.story { white-space: normal; color: #6b5a1e; }
+table.cells td.story { white-space: normal; color: #6b5a1e; min-width: 9.5em; }
 table.cells td.move  { width: 1%; }
+
+/* 표 안의 칸 그림 */
+.art {
+  display: inline-block;
+  width: 22px;
+  margin-right: 6px;
+  font-size: 15px;
+  text-align: center;
+  vertical-align: middle;
+}
 
 /* 칸 번호는 보드의 칸처럼 네모 칩으로. 폭을 고정해 위아래가 나란히 선다. */
 .chip {
@@ -453,6 +463,7 @@ td.down .arw { color: #1b7a22; }
 
 /* 이미지가 이미 칸·번호·뱀·도로를 다 그려 놓았으므로 우리 것은 감춘다 */
 #board[data-bg="photo"] .cell   { background: none; border-color: transparent; }
+#board[data-bg="photo"] .pic,
 #board[data-bg="photo"] .num,
 #board[data-bg="photo"] .badge,
 #board[data-bg="photo"] #overlay { display: none; }
@@ -477,6 +488,22 @@ td.down .arw { color: #1b7a22; }
 /* 도착 칸은 옅게 물들여 어디로 가는지 미리 보이게 한다 */
 .cell.dest-up   { background: #d9f0b8; }
 .cell.dest-down { background: #f5d3cc; }
+
+/* 칸 그림 — 뱀·도로(z:2) 아래에 깔린다. 원본 판도 그림 위로 뱀이 지나간다. */
+.cell .pic {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  font-size: clamp(11px, 3.2vmin, 29px);
+  line-height: 1;
+  /* 뱀·도로가 위로 지나가도 형체가 읽히도록 흰 테두리를 둘러 준다.
+     이모지는 컬러 글리프라 text-shadow 가 먹지 않아 drop-shadow 를 겹쳐 쓴다. */
+  filter:
+    drop-shadow(0 0 1.5px #fffbe8) drop-shadow(0 0 1.5px #fffbe8)
+    drop-shadow(0 0 3px rgba(255,251,232,.9));
+}
 
 /* 번호와 표식은 뱀·도로(z:2) 위에 얹어야 가려지지 않는다 */
 .cell .num {
@@ -1366,7 +1393,7 @@ td.down .arw { color: #1b7a22; }
     <div id="board" data-bg="photo">
       <div id="banner">
         <div class="b-title"><em>뱀</em>주사위놀이</div>
-        <div class="b-sub">육성 버전 · 고속도로 13 · 뱀 12</div>
+        <div class="b-sub">요즘판 · 고속도로 13 · 뱀 12</div>
       </div>
       <div id="grid">
         <svg id="overlay" viewBox="0 0 1000 1239" preserveAspectRatio="none" aria-hidden="true"></svg>
@@ -1447,9 +1474,18 @@ td.down .arw { color: #1b7a22; }
         <ul>
           <li>사람 1명과 컴퓨터 1명이 번갈아 두는 턴제입니다.</li>
           <li>주사위는 3D로 구르며, 결과가 나오는 과정을 눈으로 볼 수 있습니다.</li>
-          <li>보드는 <b>원본</b> 그림과, 같은 배치를 코드로 다시 그린 <b>레트로</b> 중에 고를 수 있습니다.</li>
-          <li>고속도로 13개와 뱀 12개는 원본 보드와 같습니다.</li>
+          <li>보드는 <b>원본 판</b>과 <b>요즘판</b> 중에 고를 수 있습니다.
+              고속도로 13곳·뱀 12곳의 <b>위치는 똑같고 이야기만 다릅니다</b> —
+              1970~80년대의 이야기와 지금의 이야기를 같은 판에서 견줘 볼 수 있습니다.</li>
         </ul>
+
+        <h2>같은 칸, 다른 시대</h2>
+        <p>
+          요즘판은 원본의 칸 배치를 그대로 두고 <b>시대를 타는 이야기만</b> 바꿨습니다.
+          간첩 신고는 <b>보이스피싱 신고</b>가 되고, 전투에서 이기는 칸은 <b>헌혈</b>이
+          되었습니다. 언 호수에서 스케이트를 타다 빠지는 일이나 불장난으로 불을 내는 일처럼
+          시대와 무관한 것은 그대로 뒀습니다. 어느 쪽으로 놀아도 판의 흐름은 같습니다.
+        </p>
 
         <p class="note">
           뱀주사위놀이는 운이 전부인 놀이입니다. 고를 수 있는 것이 없으므로
@@ -1505,7 +1541,7 @@ td.down .arw { color: #1b7a22; }
         <ul>
           <li>파란 <b>🧑 말</b>이 사람, 빨간 <b>🤖 말</b>이 컴퓨터입니다.</li>
           <li><b>새 게임</b>을 누르면 보드 종류와 규칙을 고르는 창이 열립니다.</li>
-          <li>보드는 <b>원본 그림</b>과 코드로 다시 그린 <b>레트로</b> 중에 고릅니다.</li>
+          <li>보드는 <b>원본 판</b>과 <b>요즘판</b> 중에 고릅니다.</li>
           <li>상단 <b>🔊</b> 버튼으로 판 도중에도 효과음을 끌 수 있습니다.</li>
         </ul>
 
@@ -1545,8 +1581,8 @@ td.down .arw { color: #1b7a22; }
       <div class="opt-group">
         <span class="opt-label">보드</span>
         <div class="opt-seg">
-          <button type="button" class="oseg" data-board="photo">원본 그림</button>
-          <button type="button" class="oseg" data-board="retro">레트로</button>
+          <button type="button" class="oseg" data-board="photo">원본 판</button>
+          <button type="button" class="oseg" data-board="retro">요즘판</button>
         </div>
       </div>
 
@@ -1616,8 +1652,8 @@ const SNAKES = {
   68: 52, 72: 50, 84: 62, 94: 64, 96: 82, 98: 78
 };
 
-// 칸별 이야기. 원본 보드의 그림과 나무위키 「육성 버전」 설명을 대조해 맞췄다.
-const STORIES = {
+// 칸별 이야기 — 원본 판. 보드 그림과 나무위키 「육성 버전」 설명을 대조해 맞췄다.
+const STORIES_CLASSIC = {
   4:  "노인에게 길을 비켜 드려 칭찬을 받았다",
   8:  "역기를 들어 몸을 단련하고 우승 트로피를 받았다",
   18: "나무를 심어 온 산을 푸르게 가꾸었다",
@@ -1645,6 +1681,57 @@ const STORIES = {
   96: "나무를 마구 베어 홍수가 났다",
   98: "나무에 올라갔다가 떨어졌다"
 };
+
+// 칸별 이야기 — 요즘판. 칸 위치는 원본과 똑같이 두고 이야기만 지금 것으로 바꿨다.
+// 시대를 타는 것만 손대고(간첩 신고 → 보이스피싱, 전투 → 헌혈), 안 타는 것은 그대로 뒀다.
+const STORIES_MODERN = {
+  4:  "지하철에서 어르신께 자리를 양보했다",
+  8:  "꾸준히 운동해 대회에서 상을 받았다",
+  18: "나무를 심어 헐벗은 산을 되살렸다",
+  20: "보이스피싱을 알아채고 신고해 표창을 받았다",
+  24: "쓰러진 사람에게 심폐소생술을 해 살렸다",
+  32: "미루지 않고 공부해 졸업했다",
+  34: "성실히 일해 첫 목돈을 모았다",
+  40: "텃밭을 가꿔 손수 거두었다",
+  48: "분리수거를 꼼꼼히 해 칭찬을 받았다",
+  70: "물에 빠진 사람을 구해 냈다",
+  76: "연구에 몰두해 새로운 것을 밝혀냈다",
+  80: "달리기에서 일등을 하여 우승했다",
+  90: "헌혈에 참여해 누군가를 살렸다",
+
+  22: "얼어붙은 호수에 들어가 얼음이 깨져 빠졌다",
+  28: "밤새 영상만 보다 시험을 망쳤다",
+  30: "남의 담벼락에 낙서를 하다 붙잡혔다",
+  44: "친구를 때려 합의금을 물어 주었다",
+  58: "남의 반려견을 발로 찼다가 쫓겨 달아났다",
+  66: "남의 물건에 손을 대어 붙잡혀 갇혔다",
+  68: "배달 음식을 욕심껏 먹다 배탈이 났다",
+  72: "위험한 물건을 장난삼아 다루다 크게 다쳤다",
+  84: "선로에 내려가 사진을 찍다 큰일 날 뻔했다",
+  94: "불장난을 하다 불을 냈다",
+  96: "나무를 마구 베어 산사태가 났다",
+  98: "난간에 올라갔다가 떨어졌다"
+};
+
+// 요즘판의 칸 그림. 1번 칸부터 100번 칸까지 차례대로.
+// 특수 칸은 그 칸의 이야기를, 도착 칸은 그 결과를 나타낸다. 나머지는 하루하루의 장면.
+const CELL_ART = [
+  "🐣", "🥶", "🎒", "🧓", "✏️", "😞", "📖", "🏋️", "⚽", "😣",
+  "🚲", "🏆", "🎨", "🚨", "🎵", "👏", "🧹", "🌳", "🥛", "📞",
+  "🍎", "⛸️", "🌱", "🚑", "☀️", "🩹", "🛏️", "📱", "🧼", "🖍️",
+  "👕", "📚", "🍚", "💰", "🚿", "🩺", "📝", "🏞️", "🧮", "🥕",
+  "🗺️", "😱", "🔭", "🤕", "🧲", "🏦", "🚌", "♻️", "🚦", "🏥",
+  "🏫", "💊", "🏠", "🌟", "🤝", "🎓", "💌", "🐕", "🎁", "🥗",
+  "🕰️", "😰", "📅", "🚒", "🧭", "🚔", "⛰️", "🤢", "🌸", "🛟",
+  "🍁", "💥", "❄️", "🏅", "🎂", "🔬", "🧑‍🍳", "🩼", "🧑‍🌾", "🏃",
+  "🧑‍🏫", "🌊", "🧑‍🔧", "🚄", "🧑‍🎨", "📜", "🧑‍💻", "🏵️", "🌠", "🩸",
+  "🗻", "❤️", "🌅", "🔥", "🎆", "🪵", "🥂", "🪜", "🚩", "🎉"
+];
+
+// 지금 보드에 맞는 이야기. 보드를 바꾸면 칸에 붙은 이야기도 함께 바뀐다.
+function stories() {
+  return (OPTIONS.board === "retro") ? STORIES_MODERN : STORIES_CLASSIC;
+}
 
 /* ==========================================================================
    2. 좌표 — 부스트로페돈 (1번 좌하단, 100번 좌상단)
@@ -1727,7 +1814,9 @@ function buildGrid() {
     if (HIGHWAYS[n] !== undefined) badge = '<span class="badge up">&#8599;</span>';
     else if (SNAKES[n] !== undefined) badge = '<span class="badge">&#128013;</span>';
 
-    el.innerHTML = '<span class="num">' + n + "</span>" + badge;
+    // 그림은 번호·표식 아래, 뱀·고속도로 아래에 깔린다 (원본 판도 그림 위로 뱀이 지난다)
+    el.innerHTML = '<span class="pic">' + CELL_ART[n - 1] + "</span>" +
+                   '<span class="num">' + n + "</span>" + badge;
     grid.appendChild(el);
     cellEls[n] = el;
   }
@@ -1787,12 +1876,13 @@ function drawHighway(from, to, g) {
   const p = arcPath(a, b, amp);
 
   // 회색 밑단 → 흰 노면 → 노란 차선. 세 겹을 겹쳐 리본 도로를 만든다.
+  // 칸 그림 위를 지나므로 너무 굵으면 그림을 다 덮는다 — 폭을 아껴 쓴다.
   g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#8d8d8d",
-    "stroke-width": 32, "stroke-linecap": "round", opacity: .85 }));
+    "stroke-width": 26, "stroke-linecap": "round", opacity: .8 }));
   g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#ffffff",
-    "stroke-width": 25, "stroke-linecap": "round" }));
+    "stroke-width": 20, "stroke-linecap": "round", opacity: .92 }));
   g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#f0a500",
-    "stroke-width": 5, "stroke-dasharray": "17 13", "stroke-linecap": "butt" }));
+    "stroke-width": 4, "stroke-dasharray": "16 13", "stroke-linecap": "butt" }));
 
   // 도착점 화살표. 2차 베지어의 끝 접선은 (끝점 - 제어점) 방향이다.
   const ang = Math.atan2(b.y - p.cy, b.x - p.cx) * 180 / Math.PI;
@@ -1816,11 +1906,11 @@ function drawSnake(from, to, g) {
   const p = wavyPath(a, b, waves, amp);
 
   g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#1d5c22",
-    "stroke-width": 26, "stroke-linecap": "round" }));
+    "stroke-width": 21, "stroke-linecap": "round", opacity: .92 }));
   g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#4faa33",
-    "stroke-width": 17, "stroke-linecap": "round" }));
+    "stroke-width": 13, "stroke-linecap": "round" }));
   g.appendChild(svg("path", { d: p.d, fill: "none", stroke: "#a6dd6a",
-    "stroke-width": 4, "stroke-dasharray": "9 17", "stroke-linecap": "round", opacity: .8 }));
+    "stroke-width": 3, "stroke-dasharray": "8 15", "stroke-linecap": "round", opacity: .8 }));
 
   // 꼬리 — 시작 칸(a)에서 몸통 바깥으로 뾰족하게 뺀다.
   {
@@ -2301,7 +2391,7 @@ function showStory(n, kind, to) {
     kind:   up ? "up" : "down",
     icon:   up ? "🚗" : "🐍",
     kicker: up ? "고속도로" : "뱀에게 물렸다",
-    text:   STORIES[n] || "",
+    text:   stories()[n] || "",
     from:   n,
     to:     to
   });
@@ -2527,15 +2617,18 @@ const helpEl = document.getElementById("help");
 
 // 특수 칸 표는 게임 데이터에서 그대로 뽑는다. 규칙과 안내가 어긋날 일이 없다.
 function buildHelpTables() {
+  // 원본과 요즘판을 나란히 둔다 — 같은 칸이 시대에 따라 어떻게 달라졌는지가 이 표의 볼거리다.
   const rows = (map, cls) =>
     Object.keys(map).map(Number).sort((a, b) => a - b).map(from =>
       `<tr><td class="move ${cls}">` +
+      `<span class="art">${CELL_ART[from - 1]}</span>` +
       `<span class="chip from">${from}</span>` +
       `<span class="arw">&rarr;</span>` +
       `<span class="chip to">${map[from]}</span></td>` +
-      `<td class="story">${STORIES[from] || ""}</td></tr>`).join("");
+      `<td class="story">${STORIES_CLASSIC[from] || ""}</td>` +
+      `<td class="story">${STORIES_MODERN[from] || ""}</td></tr>`).join("");
 
-  const head = '<thead><tr><th>칸</th><th>무슨 일이 있었나</th></tr></thead><tbody>';
+  const head = '<thead><tr><th>칸</th><th>원본 판</th><th>요즘판</th></tr></thead><tbody>';
 
   document.getElementById("tblUp").innerHTML   = head + rows(HIGHWAYS, "up") + "</tbody>";
   document.getElementById("tblDown").innerHTML = head + rows(SNAKES, "down") + "</tbody>";
