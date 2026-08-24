@@ -415,12 +415,21 @@ td.down .arw { color: #1b7a22; }
   background: var(--cell-a);
 }
 
-/* ---- 원본 이미지 모드 ---- */
+/* ---- 그림 한 장 모드 ----
+   원본 판(photo)과 구워 낸 요즘판(modern). 격자·칸 번호·뱀·고속도로가 모두 그림 안에
+   있으므로 위에 얹히는 것을 전부 감춘다. 두 판의 격자 좌표는 같다. */
 
-#board[data-bg="photo"] {
-  background: #000 url("board.webp") center / 100% 100% no-repeat;
+#board[data-bg="photo"],
+#board[data-bg="modern"] {
   border: 3px solid #2a2620;
+  background-color: #000;
+  background-position: center;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
+
+#board[data-bg="photo"]  { background-image: url("board.webp"); }
+#board[data-bg="modern"] { background-image: url("board-modern.webp"); }
 
 /* ---- 레트로 모드의 제목 배너 (원본의 노란 제목판 자리) ---- */
 
@@ -464,14 +473,15 @@ td.down .arw { color: #1b7a22; }
 }
 
 /* 이미지가 이미 칸·번호·뱀·도로를 다 그려 놓았으므로 우리 것은 감춘다 */
-#board[data-bg="photo"] .cell   { background: none; border-color: transparent; }
-#board[data-bg="photo"] .pic,
-#board[data-bg="photo"] .num,
-#board[data-bg="photo"] .badge,
-#board[data-bg="photo"] #overlay { display: none; }
+#board:is([data-bg="photo"], [data-bg="modern"]) .cell { background: none; border-color: transparent; }
+#board:is([data-bg="photo"], [data-bg="modern"]) .pic,
+#board:is([data-bg="photo"], [data-bg="modern"]) .num,
+#board:is([data-bg="photo"], [data-bg="modern"]) .badge,
+#board:is([data-bg="photo"], [data-bg="modern"]) #banner,
+#board:is([data-bg="photo"], [data-bg="modern"]) #overlay { display: none; }
 
 /* 원본 그림은 알록달록해서 말이 묻힌다. 검은 링을 둘러 떼어 놓는다. */
-#board[data-bg="photo"] .token {
+#board:is([data-bg="photo"], [data-bg="modern"]) .token {
   box-shadow: 0 0 0 2.5px rgba(0, 0, 0, .9), 0 4px 8px rgba(0, 0, 0, .7);
 }
 
@@ -2777,12 +2787,35 @@ function relayoutBoard() {
   for (const p of PLAYERS) placeToken(p, p.pos, true);
 }
 
+// 구워 낸 요즘판 그림(board-modern.webp)이 있는가. null 이면 아직 확인 전.
+// 그림이 있으면 원본 판과 똑같이 「그림 한 장」으로 그리고, 없으면 코드로 그린다.
+// 코드로 그리는 경로는 지울 수 없다 — 그것이 그 그림을 굽는 원천이기 때문이다
+// (tools/bake-board.py 가 이 화면을 그대로 찍는다).
+let modernBaked = null;
+
 function setBoardMode(mode) {
   OPTIONS.board = (mode === "retro") ? "retro" : "photo";
-  board.dataset.bg = OPTIONS.board;
+  board.dataset.bg = (OPTIONS.board === "retro" && modernBaked) ? "modern" : OPTIONS.board;
   saveOptions();
   syncOptions();
   requestAnimationFrame(relayoutBoard);
+}
+
+// 구운 그림이 있는지 한 번만 확인하고, 있으면 보드를 그쪽으로 바꾼다.
+async function probeModernBoard() {
+  try {
+    const img = new Image();
+    img.src = "board-modern.webp";
+    await img.decode();
+    modernBaked = true;
+  } catch (e) {
+    modernBaked = false;                     // 그림이 없으면 코드로 그린 요즘판 그대로
+    return;
+  }
+
+  if (OPTIONS.board === "retro") {
+    setBoardMode("retro");
+  }
 }
 
 // 이미지 실제 크기를 읽어 종횡비에 반영한다. 그림을 갈아끼워도 좌표가 어긋나지 않는다.
@@ -2925,6 +2958,7 @@ function init() {
 
   loadOptions();
   setBoardMode(OPTIONS.board);
+  probeModernBoard();
   measureBoardImage();
   useArtImages();                 // art/ 에 그림이 있으면 픽토그램 대신 그것을 쓴다
 
